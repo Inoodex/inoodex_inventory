@@ -15,6 +15,7 @@
 Homestead.json
 Homestead.yaml
 auth.json
+*.md
 
 # Storage & Framework Cache
 /storage/*.key
