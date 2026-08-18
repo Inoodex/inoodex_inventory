@@ -5,6 +5,7 @@
 # Dependencies
 /vendor/
 /node_modules/
+*.md
 
 # Environment & Sensitive Configs
 .env
