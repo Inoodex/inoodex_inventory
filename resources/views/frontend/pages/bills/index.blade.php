@@ -61,7 +61,37 @@
     }
     .table-custom th, .table-custom td {
         white-space: nowrap;
-    }</style>
+    }
+    .card, .card-body {
+        overflow: visible !important;
+    }
+    .table-responsive {
+        overflow: visible !important;
+    }
+    @media (max-width: 991.98px) {
+        .table-responsive {
+            overflow-x: auto !important;
+            overflow-y: visible !important;
+            min-height: 260px;
+        }
+    }
+    .table-custom {
+        overflow: visible !important;
+    }
+    .table-custom td {
+        position: relative;
+    }
+    .table-custom .dropdown-menu {
+        z-index: 1060 !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
+    }
+    .table-custom tbody tr:last-child .dropdown-menu,
+    .table-custom tbody tr:nth-last-child(2) .dropdown-menu {
+        bottom: 100% !important;
+        top: auto !important;
+        margin-bottom: 6px !important;
+    }
+</style>
 @endpush
 
 @section('content')
@@ -223,7 +253,7 @@
                                 </td>
                                 <td>
                                     <div class="dropdown">
-                                        <a href="javascript:void(0)" class="btn-action-icon shadow-none" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <a href="javascript:void(0)" class="btn-action-icon shadow-none" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </a>
                                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
