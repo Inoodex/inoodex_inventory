@@ -127,6 +127,12 @@
                 <div class="ref-box">
                     <strong>Ref:</strong> {{ $bill->reference_number }}<br>
                     <strong>Date:</strong> {{ $bill->bill_date ? \Carbon\Carbon::parse($bill->bill_date)->format('d M Y') : date('d M Y') }}
+                    @php
+                        $salesPersonName = $sales_by ?? ($bill->sale->salesPerson->name ?? ($bill->sale->salesBy->name ?? null));
+                    @endphp
+                    @if(!empty($salesPersonName))
+                        <br><strong>Sales By:</strong> {{ $salesPersonName }}
+                    @endif
                 </div>
             </td>
             <td style="width:50%;" class="report-title">
@@ -284,8 +290,10 @@
                 <td width="50%" align="left" style="vertical-align: bottom;">
                     @if(!isset($show_seal) || $show_seal)
                         @php
-                            $sealImg = $company['seal_image'] ?? null;
-                            $sealSrc = ($sealImg && file_exists(public_path($sealImg))) ? public_path($sealImg) : (file_exists(public_path('sil.png')) ? public_path('sil.png') : null);
+                            $customSeal = $company['seal_image'] ?? null;
+                            $sealSrc = file_exists(public_path('assets/invoice/sill.png')) 
+                                ? public_path('assets/invoice/sill.png') 
+                                : (($customSeal && file_exists(public_path($customSeal))) ? public_path($customSeal) : null);
                         @endphp
                         @if($sealSrc)
                             <img src="{{ $sealSrc }}" style="max-height: 80px;" alt="Company Seal">

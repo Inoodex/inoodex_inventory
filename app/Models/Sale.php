@@ -91,4 +91,9 @@ public function salesBy()
     {
         return $this->belongsTo(User::class, 'sales_by');
     }
+
+    public function challans()
+    {
+        return $this->hasMany(Challan::class, 'sale_id');
+    }
 }

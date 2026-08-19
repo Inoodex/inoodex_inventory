@@ -44,6 +44,12 @@
                 <h1 style="font-size: 26px; color: #0f172a; margin-bottom: 4px;">INVOICE</h1>
                 <div style="font-size: 15px; font-weight: 700; color: #4f46e5;">Invoice No: #{{ $sales->order_no }}</div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Invoice Date: {{ $sales->created_at ? $sales->created_at->format('d M Y') : date('d M Y') }}</div>
+                @php
+                    $salesPersonName = $sales->salesPerson->name ?? ($sales->salesBy->name ?? null);
+                @endphp
+                @if(!empty($salesPersonName))
+                    <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Sales By: <strong style="color: #0f172a;">{{ $salesPersonName }}</strong></div>
+                @endif
             </td>
         </tr>
     </table>

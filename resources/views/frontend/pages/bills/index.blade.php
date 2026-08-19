@@ -180,13 +180,17 @@
                             <th>Bill Number</th>
                             <th>Bill Date</th>
                             <th>Type</th>
+                            <th>Sales By</th>
                             <th>Total Amount</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody class="border-top-0">
                         @forelse($bills as $bill)
-                            <tr class="bill-row" data-search="{{ strtolower($bill->bill_number . ' ' . $bill->type . ' ' . $bill->total_amount) }}" data-type="{{ strtolower($bill->type) }}">
+                            @php
+                                $salesPersonName = $bill->sale->salesPerson->name ?? ($bill->sale->salesBy->name ?? 'N/A');
+                            @endphp
+                            <tr class="bill-row" data-search="{{ strtolower($bill->bill_number . ' ' . $bill->type . ' ' . $salesPersonName . ' ' . $bill->total_amount) }}" data-type="{{ strtolower($bill->type) }}">
                                 <td class="ps-4 text-muted fw-semibold">{{ $loop->iteration }}</td>
                                 <td>
                                     <span class="fw-bold text-primary font-monospace">{{ $bill->bill_number }}</span>
@@ -206,6 +210,11 @@
                                             Sales Bill
                                         </span>
                                     @endif
+                                </td>
+                                <td>
+                                    <span class="text-dark small fw-semibold">
+                                        {{ $salesPersonName }}
+                                    </span>
                                 </td>
                                 <td>
                                     <span class="badge badge-soft-primary px-3 py-1 rounded-pill fs-7">
@@ -236,6 +245,17 @@
                                                     <span>Download PDF</span>
                                                 </a>
                                             </li>
+                                            @php
+                                                $linkedChallan = $bill->sale?->challans?->last() ?? ($bill->project?->challans?->last() ?? null);
+                                            @endphp
+                                            @if($linkedChallan)
+                                                <li>
+                                                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-success" href="{{ route('challans.preview', $linkedChallan->id) }}" target="_blank">
+                                                        <i class="fe fe-truck text-success"></i>
+                                                        <span>Preview Challan</span>
+                                                    </a>
+                                                </li>
+                                            @endif
                                             <li><hr class="dropdown-divider opacity-50"></li>
                                             <li>
                                                 <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger" href="javascript:void(0)"
@@ -254,7 +274,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="7" class="text-center py-5">
                                     <div class="d-flex flex-column align-items-center justify-content-center">
                                         <div class="avatar avatar-xl bg-primary-light text-primary rounded-circle mb-3 d-flex align-items-center justify-content-center">
                                             <i class="fe fe-file-text fs-1"></i>

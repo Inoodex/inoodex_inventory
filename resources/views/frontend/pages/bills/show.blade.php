@@ -10,14 +10,46 @@
                 <h4 class="card-title fw-bold text-dark mb-1">Bill Details #{{ $bill->bill_number }}</h4>
                 <p class="text-muted small mb-0">Reference No: <strong class="text-dark">{{ $bill->reference_number }}</strong></p>
             </div>
-            <div>
-                <a href="{{ route('bills.index') }}" class="btn btn-outline-secondary px-4 py-2 rounded-3 shadow-sm me-2">
-                    <i class="fa fa-arrow-left me-2"></i>Back to Bills
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ route('bills.preview', $bill->id) }}" class="btn btn-outline-primary px-3 py-2 rounded-3 shadow-sm" target="_blank">
+                    <i class="fe fe-file-text me-1"></i>Preview Bill PDF
+                </a>
+                <a href="{{ route('bills.download', $bill->id) }}" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm" target="_blank">
+                    <i class="fe fe-download me-1"></i>Download Bill
+                </a>
+                @if(isset($linked_challan) && $linked_challan)
+                    <a href="{{ route('challans.preview', $linked_challan->id) }}" class="btn btn-outline-success px-3 py-2 rounded-3 shadow-sm" target="_blank">
+                        <i class="fe fe-truck me-1"></i>Preview Challan PDF
+                    </a>
+                @endif
+                <a href="{{ route('bills.index') }}" class="btn btn-secondary px-3 py-2 rounded-3 shadow-sm">
+                    <i class="fa fa-arrow-left me-1"></i>Back
                 </a>
             </div>
         </div>
     </div>
     <!-- /Page Header -->
+
+    @if(isset($linked_challan) && $linked_challan)
+        <!-- Linked Challan Alert Banner -->
+        <div class="alert alert-soft-success d-flex align-items-center justify-content-between mb-4 p-3 rounded-3 border-0 shadow-sm">
+            <div class="d-flex align-items-center">
+                <i class="fe fe-truck fs-3 text-success me-3"></i>
+                <div>
+                    <h6 class="fw-bold mb-0 text-success">Linked Delivery Challan Available</h6>
+                    <span class="small text-muted">Challan No: <strong class="text-dark font-monospace">{{ $linked_challan->challan_number }}</strong> &bull; Ref: {{ $linked_challan->reference_number }}</span>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ route('challans.preview', $linked_challan->id) }}" class="btn btn-sm btn-success px-3 rounded-2" target="_blank">
+                    <i class="fe fe-eye me-1"></i>View Challan
+                </a>
+                <a href="{{ route('challans.download', $linked_challan->id) }}" class="btn btn-sm btn-outline-success px-3 rounded-2" target="_blank">
+                    <i class="fe fe-download me-1"></i>Download PDF
+                </a>
+            </div>
+        </div>
+    @endif
 
     <!-- Info Summary Cards Row -->
     <div class="row g-4 mb-4">
@@ -51,6 +83,15 @@
                                 </span>
                             </td>
                         </tr>
+                        @php
+                            $salesPersonName = $sales_by ?? ($bill->sale->salesPerson->name ?? ($bill->sale->salesBy->name ?? null));
+                        @endphp
+                        @if(!empty($salesPersonName))
+                            <tr>
+                                <td class="text-secondary small fw-semibold ps-0">Sales By:</td>
+                                <td class="fw-semibold text-dark">{{ $salesPersonName }}</td>
+                            </tr>
+                        @endif
                         @if(!empty($amount_in_words))
                             <tr>
                                 <td class="text-secondary small fw-semibold ps-0">Amount in Words:</td>

@@ -116,4 +116,9 @@ public function totalCost()
     return $this->costs()->sum('amount');
 }
 
+public function challans()
+{
+    return $this->hasMany(Challan::class, 'project_id');
+}
+
 }

@@ -6,13 +6,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use App\Models\{BankDetail, Bill, BillItem, Client, CompanyDetail, Customer, Project, Purchase, Sale, Vendor};
+use App\Models\{BankDetail, Bill, BillItem, Challan, ChallanItem, Client, CompanyDetail, Customer, Project, Purchase, Sale, Vendor};
 
 class BillController extends Controller
 {
  public function index(Request $request)
 {
-    $query = Bill::with(['client', 'vendor', 'project', 'purchase', 'items']);
+    $query = Bill::with(['client', 'vendor', 'project.challans', 'purchase', 'items', 'sale.salesPerson', 'sale.challans']);
 
     // Type filter
     if ($request->has('type') && $request->type != '') {
@@ -57,13 +57,14 @@ public function create()
     public function getSales()
     {
         try {
-            $sales = Sale::with(['customer', 'client', 'items.product'])
+            $sales = Sale::with(['customer', 'client', 'items.product', 'salesPerson', 'salesBy'])
                 ->latest()
                 ->get()
                 ->map(function ($sale) {
                     $customerName = $sale->sale_type == 'project' ? ($sale->client->name ?? 'N/A') : ($sale->customer->name ?? 'N/A');
                     $customerPhone = $sale->sale_type == 'project' ? ($sale->client->phone ?? 'N/A') : ($sale->customer->phone ?? 'N/A');
                     $customerAddress = $sale->sale_type == 'project' ? ($sale->client->address ?? 'N/A') : ($sale->customer->address ?? 'N/A');
+                    $salesPersonName = $sale->salesPerson->name ?? ($sale->salesBy->name ?? 'N/A');
 
                     $items = $sale->items->map(function ($item) {
                         return [
@@ -85,6 +86,8 @@ public function create()
                         'customer_name' => $customerName,
                         'customer_phone' => $customerPhone,
                         'customer_address' => $customerAddress,
+                        'sales_by' => $sale->sales_by,
+                        'sales_by_name' => $salesPersonName,
                         'payble' => $sale->payble ?? $sale->total ?? 0,
                         'total_amount' => $sale->payble ?? $sale->total ?? 0,
                         'due_payment' => $sale->due_payment ?? 0,
@@ -243,98 +246,92 @@ public function store(Request $request)
         'show_seal' => $request->has('show_seal') ? (bool)$request->show_seal : true,
     ];
 
-    // Create the bill
-    $bill = Bill::create($billData);
+    $autoGenerateChallan = $request->has('auto_generate_challan') ? (bool)$request->auto_generate_challan : true;
+    $bill = null;
+    $createdChallan = null;
 
-    // Create bill items
-    foreach ($request->items as $item) {
-        $qty = (int)($item['quantity'] ?? 1);
-        $price = (float)($item['unit_price'] ?? 0);
-        $lineTotal = isset($item['total']) ? (float)$item['total'] : ($qty * $price);
+    DB::transaction(function () use (
+        $request,
+        $billData,
+        &$bill,
+        $clientName,
+        $clientAddress,
+        $customerId,
+        $clientId,
+        $companyDetail,
+        $autoGenerateChallan,
+        &$createdChallan
+    ) {
+        // 1. Create the bill
+        $bill = Bill::create($billData);
 
-        BillItem::create([
-            'bill_id' => $bill->id,
-            'description' => $item['description'] ?? '',
-            'quantity' => $qty,
-            'unit' => $item['unit'] ?? 'Pcs',
-            'unit_price' => $price,
-            'total' => $lineTotal,
-        ]);
-    }
+        // 2. Create bill items
+        foreach ($request->items as $item) {
+            $qty = (int)($item['quantity'] ?? 1);
+            $price = (float)($item['unit_price'] ?? 0);
+            $lineTotal = isset($item['total']) ? (float)$item['total'] : ($qty * $price);
 
-    // Generate PDF - Load relationships to get client data
-    $billWithRelations = Bill::with([
-        'billItems', 
-        'bankDetail', 
-        'companyDetail',
-        'sale.customer',
-        'project.client',
-        'customer',
-        'client'
-    ])->find($bill->id);
-
-    // Determine client data for PDF
-    $pdfClientName = $clientName;
-    $pdfClientAddress = $clientAddress;
-
-    // If we don't have the data, try to get from relationships
-    if (empty($pdfClientName)) {
-        if ($billWithRelations->sale && $billWithRelations->sale->customer) {
-            $pdfClientName = $billWithRelations->sale->customer->name;
-            $pdfClientAddress = $billWithRelations->sale->customer->address;
-        } elseif ($billWithRelations->project && $billWithRelations->project->client) {
-            $pdfClientName = $billWithRelations->project->client->name;
-            $pdfClientAddress = $billWithRelations->project->client->address;
+            BillItem::create([
+                'bill_id' => $bill->id,
+                'description' => $item['description'] ?? '',
+                'quantity' => $qty,
+                'unit' => $item['unit'] ?? 'Pcs',
+                'unit_price' => $price,
+                'total' => $lineTotal,
+            ]);
         }
-    }
 
-    // Final fallback to form values
-    if (empty($pdfClientName)) {
-        $pdfClientName = $request->client_name ?: 'N/A';
-    }
-    if (empty($pdfClientAddress)) {
-        $pdfClientAddress = $request->client_address ?: 'N/A';
-    }
+        // 3. Auto-generate Delivery Challan if requested
+        if ($autoGenerateChallan) {
+            $challanNumber = 'CHALLAN-' . date('Ymd') . '-' . str_pad(Challan::count() + 1, 4, '0', STR_PAD_LEFT);
+            $challanRef = 'CHL-' . ($request->reference_number ? preg_replace('/^BIL-/i', '', $request->reference_number) : date('Ymd-His'));
 
-    $pdfData = [
-        'bill' => $billWithRelations,
-        'amount_in_words' => $this->convertToWords($billWithRelations->total_amount),
-        'bank_details' => [
-            'account_name' => $billWithRelations->bankDetail->account_name,
-            'bank_name' => $billWithRelations->bankDetail->bank_name,
-            'branch' => $billWithRelations->bankDetail->branch,
-            'account_number' => $billWithRelations->bankDetail->account_number,
-            'account_type' => $billWithRelations->bankDetail->account_type,
-            'routing_number' => $billWithRelations->bankDetail->routing_number,
-        ],
-        'company' => [
-            'name' => $billWithRelations->companyDetail->name,
-            'signatory_name' => $billWithRelations->companyDetail->signatory_name,
-            'signatory_designation' => $billWithRelations->companyDetail->signatory_designation,
-            'signature_image' => $billWithRelations->companyDetail->signature_image,
-            'seal_image' => $billWithRelations->companyDetail->seal_image,
-            'phone' => $billWithRelations->companyDetail->phone,
-            'email' => $billWithRelations->companyDetail->email,
-            'website' => $billWithRelations->companyDetail->website,
-            'address' => $billWithRelations->companyDetail->address,
-        ],
-        'recipient_designation' => $billWithRelations->designation,
-        'recipient_organization' => $pdfClientName,
-        'recipient_address' => $pdfClientAddress,
-        'attention_to' => $billWithRelations->attention_to,
-        'terms_conditions' => $billWithRelations->terms_conditions,
-    ];
+            $challan = Challan::create([
+                'challan_number' => $challanNumber,
+                'reference_number' => $challanRef,
+                'challan_date' => $request->bill_date ?: date('Y-m-d'),
+                'type' => $request->bill_type,
+                'sale_id' => $request->bill_type === 'sale' ? (int)$request->selected_sale_id : null,
+                'project_id' => $request->bill_type === 'project' ? (int)$request->selected_project_id : null,
+                'customer_id' => $customerId,
+                'client_id' => $clientId,
+                'recipient_organization' => $clientName ?: 'N/A',
+                'recipient_designation' => $request->designation ?? 'The Managing Director',
+                'recipient_address' => $clientAddress ?: 'N/A',
+                'attention_to' => $request->attention_to,
+                'designation' => $request->designation,
+                'subject' => 'Delivery Challan' . ($request->subject ? ' - ' . $request->subject : ''),
+                'notes' => $request->notes,
+                'company_name' => $companyDetail->name ?? 'Intelligent Technology',
+                'signatory_name' => $companyDetail->signatory_name ?? 'Engr. Shamsul Alam',
+                'signatory_designation' => $companyDetail->signatory_designation ?? 'Director (Technical)',
+                'company_phone' => $companyDetail->phone ?? '+880 XXXX-XXXXXX',
+                'company_email' => $companyDetail->email ?? 'info@intelligenttech.com',
+                'company_website' => $companyDetail->website ?? 'www.itechbd.net',
+                'show_signature' => $request->has('show_signature') ? (bool)$request->show_signature : true,
+                'show_seal' => $request->has('show_seal') ? (bool)$request->show_seal : true,
+            ]);
 
-    $fileRecipientName = $billWithRelations->customer->name
-        ?? $billWithRelations->client->name
-        ?? $pdfClientName
-        ?? 'client';
+            // Add challan items
+            foreach ($request->items as $item) {
+                $qty = (int)($item['quantity'] ?? 1);
+                ChallanItem::create([
+                    'challan_id' => $challan->id,
+                    'description' => $item['description'] ?? '',
+                    'quantity' => $qty,
+                    'unit' => $item['unit'] ?? 'Pcs',
+                ]);
+            }
 
-    $clientSlug = Str::slug($fileRecipientName);
-    $billDate = $billWithRelations->bill_date
-        ? Carbon::parse($billWithRelations->bill_date)->format('d-m-Y')
-        : now()->format('d-m-Y');
-    return redirect()->route('bills.index')->with('success', 'Bill generated successfully!');
+            $createdChallan = $challan;
+        }
+    });
+
+    $successMessage = $createdChallan
+        ? "Bill #{$bill->bill_number} and Delivery Challan #{$createdChallan->challan_number} generated successfully!"
+        : "Bill #{$bill->bill_number} generated successfully!";
+
+    return redirect()->route('bills.index')->with('success', $successMessage);
 }
 
 public function show($id)
@@ -342,14 +339,29 @@ public function show($id)
     $bill = Bill::with([
         'billItems',
         'sale.customer', 
+        'sale.salesPerson',
         'project.client',
         'customer',
         'client'
     ])->findOrFail($id);
 
+    $salesByName = $bill->sale->salesPerson->name
+        ?? $bill->sale->salesBy->name
+        ?? null;
+
+    // Look for matching linked Delivery Challan
+    $linkedChallan = null;
+    if ($bill->sale_id) {
+        $linkedChallan = Challan::where('sale_id', $bill->sale_id)->latest()->first();
+    } elseif ($bill->project_id) {
+        $linkedChallan = Challan::where('project_id', $bill->project_id)->latest()->first();
+    }
+
     $data = [
         'bill' => $bill,
+        'linked_challan' => $linkedChallan,
         'amount_in_words' => $this->convertToWords($bill->total_amount),
+        'sales_by' => $salesByName,
         'subject' => $bill->subject ?? 'Bill for Supplying of Products/Services',
         'bank_details' => [
             'account_name' => $bill->bank_account_name ?? 'Intelligent Technology',
@@ -518,6 +530,7 @@ public function preview($id)
     $bill = Bill::with([
         'billItems',
         'sale.customer',
+        'sale.salesPerson',
         'project.client',
         'bankDetail',
         'companyDetail',
@@ -541,9 +554,14 @@ public function preview($id)
     if (empty($clientName)) $clientName = 'N/A';
     if (empty($clientAddress)) $clientAddress = 'N/A';
 
+    $salesByName = $bill->sale->salesPerson->name
+        ?? $bill->sale->salesBy->name
+        ?? null;
+
     $pdfData = [
         'bill' => $bill,
         'amount_in_words' => $this->convertToWords($bill->total_amount),
+        'sales_by' => $salesByName,
         'subject' => $bill->subject,
         'bank_details' => [
             'account_name' => $bill->bankDetail->account_name ?? 'Intelligent Technology',
@@ -590,6 +608,7 @@ public function download($id)
     $bill = Bill::with([
         'billItems',
         'sale.customer',
+        'sale.salesPerson',
         'project.client',
         'bankDetail',
         'companyDetail',
@@ -616,9 +635,14 @@ public function download($id)
     if (empty($clientName)) $clientName = 'N/A';
     if (empty($clientAddress)) $clientAddress = 'N/A';
 
+    $salesByName = $bill->sale->salesPerson->name
+        ?? $bill->sale->salesBy->name
+        ?? null;
+
     $pdfData = [
         'bill' => $bill,
         'amount_in_words' => $this->convertToWords($bill->total_amount),
+        'sales_by' => $salesByName,
         'subject' => $bill->subject,
         'bank_details' => [
             'account_name' => $bill->bankDetail->account_name,
@@ -763,7 +787,7 @@ public function download($id)
 
 public function reportPdf(Request $request)
 {
-    $query = Bill::with(['client', 'vendor', 'project', 'purchase', 'items']);
+    $query = Bill::with(['client', 'vendor', 'project', 'purchase', 'items', 'sale.salesPerson']);
 
     if ($request->filled('type')) {
         $query->where('type', $request->type);
