@@ -12,22 +12,36 @@ class LoginController extends Controller
 {
     use AuthenticatesUsers;
 
-    protected $redirectTo = '/admin/dashboard';
+    protected $redirectTo = '/';
 
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
     }
 
+    /**
+     * Where to redirect users after login.
+     *
+     * @return string
+     */
+    public function redirectTo()
+    {
+        return route('index');
+    }
+
+    /**
+     * The user has logged out of the application.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return mixed
+     */
+    protected function loggedOut(Request $request)
+    {
+        return redirect()->route('login');
+    }
+
     public function login(Request $request)
     {
-        // return $request;
-        // $this->validateLogin($request);
-
-        // $request->validate([
-        //     'g-recaptcha-response' => 'required|captcha'
-        // ]);
-
         if (
             method_exists($this, 'hasTooManyLoginAttempts') &&
             $this->hasTooManyLoginAttempts($request)
