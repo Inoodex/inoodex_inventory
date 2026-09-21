@@ -32,8 +32,11 @@ class InventoryController extends Controller
             'default_font' => 'Helvetica',
         ]);
         $mpdf->WriteHTML($html);
-        return response($mpdf->Output('Inventory_Stock_Report_' . now()->format('Y_m_d_His') . '.pdf', 'I'), 200, [
+        $fileName = 'Inventory_Stock_Report_' . now()->format('Y_m_d_His') . '.pdf';
+        $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+        return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
         ]);
     }
 
@@ -86,7 +89,24 @@ class InventoryController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        if (!auth()->user()->hasRole(['Super Admin', 'Admin', 'admin'])) {
+            abort(403, 'Unauthorized action. Only Admin or Super Admin can edit inventory stock.');
+        }
+
+        $request->validate([
+            'opening_stock' => 'required|integer|min:0',
+            'current_stock' => 'required|integer|min:0',
+            'notes'         => 'nullable|string|max:500',
+        ]);
+
+        $inventory = Inventory::findOrFail($id);
+        $inventory->update([
+            'opening_stock' => $request->opening_stock,
+            'current_stock' => $request->current_stock,
+            'notes'         => $request->notes,
+        ]);
+
+        return redirect()->back()->with('success', 'Inventory stock updated successfully.');
     }
 
     /**
@@ -94,6 +114,13 @@ class InventoryController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        if (!auth()->user()->hasRole(['Super Admin', 'Admin', 'admin'])) {
+            abort(403, 'Unauthorized action. Only Admin or Super Admin can delete inventory records.');
+        }
+
+        $inventory = Inventory::findOrFail($id);
+        $inventory->delete();
+
+        return redirect()->back()->with('success', 'Inventory record deleted successfully.');
     }
 }

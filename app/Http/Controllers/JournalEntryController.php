@@ -95,12 +95,13 @@ class JournalEntryController extends Controller
 
     public function reverse(Request $request, JournalEntry $journalEntry)
     {
-        $request->validate([
-            'reason' => 'required|string|max:500',
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
         ]);
 
         try {
-            $reversalVoucher = reverseJournalEntry($journalEntry->id, $request->reason);
+            $reason = !empty($validated['reason']) ? $validated['reason'] : 'Manual reversal / error correction';
+            $reversalVoucher = reverseJournalEntry($journalEntry->id, $reason);
 
             return redirect()->route('journal-entries.show', $reversalVoucher->id)
                 ->with('success', "Original voucher reversed. Reversal voucher [{$reversalVoucher->journal_no}] created.");
@@ -116,6 +117,7 @@ class JournalEntryController extends Controller
         $padPath = public_path('assets/invoice/final_pad.png');
         $padBase64 = file_exists($padPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($padPath)) : '';
 
+        ini_set('memory_limit', '512M');
         $html = view('pdf.accounts.voucher', compact('journalEntry', 'padBase64'))->render();
 
         $mpdf = new Mpdf([
@@ -130,8 +132,11 @@ class JournalEntryController extends Controller
 
         $mpdf->WriteHTML($html);
 
-        return response($mpdf->Output("Voucher-{$journalEntry->journal_no}.pdf", 'I'), 200, [
+        $fileName = "Voucher-{$journalEntry->journal_no}.pdf";
+        $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+        return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
         ]);
     }
 }

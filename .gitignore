@@ -1,11 +1,10 @@
 # ============================================================
-# Laravel .gitignore — Inoodex Inventory Project
+# Laravel .gitignore — iTech Inventory Project
 # ============================================================
 
 # Dependencies
 /vendor/
 /node_modules/
-*.md
 
 # Environment & Sensitive Configs
 .env
@@ -16,7 +15,6 @@
 Homestead.json
 Homestead.yaml
 auth.json
-*.md
 
 # Storage & Framework Cache
 /storage/*.key

@@ -102,7 +102,6 @@
                 <th>SL</th>
                 <th>Bill Number</th>
                 <th>Type</th>
-                <th>Sales By</th>
                 <th>Bill Date</th>
                 <th>Amount</th>
             </tr>
@@ -113,13 +112,12 @@
                     <td>{{ $loop->index + 1 }}</td>
                     <td>{{ $bill->bill_number }}</td>
                     <td>{{ ucfirst($bill->type) }}</td>
-                    <td>{{ $bill->sale->salesPerson->name ?? ($bill->sale->salesBy->name ?? 'N/A') }}</td>
                     <td>{{ $bill->bill_date->format('d-m-Y') }}</td>
                     <td>{{ number_format($bill->total_amount, 2) }} Tk</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="text-align:center;">No bills found</td>
+                    <td colspan="5" style="text-align:center;">No bills found</td>
                 </tr>
             @endforelse
         </tbody>

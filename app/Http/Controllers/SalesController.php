@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, Log, Mail};
-use App\Models\{Customer, Inventory, Payment, Product, Project, Sale, SalesItem, Service, User};
+use App\Models\{Challan, ChallanItem, CompanyDetail, Customer, Inventory, Payment, Product, Project, Sale, SalesItem, Service, User};
 use App\Mail\CreateSalesMail;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSaleRequest;
@@ -57,6 +57,7 @@ class SalesController extends Controller
 
         // Export PDF of all matching sales records
         if ($request->search_for == 'pdf' || $request->export == 'pdf') {
+            ini_set('memory_limit', '512M');
             $html = view('pdf.sales', compact('services', 'request'))->render();
             $mpdf = new \Mpdf\Mpdf([
                 'mode' => 'utf-8',
@@ -64,8 +65,11 @@ class SalesController extends Controller
                 'default_font' => 'Helvetica',
             ]);
             $mpdf->WriteHTML($html);
-            return response($mpdf->Output('Sales_List_Report_' . now()->format('Y_m_d_His') . '.pdf', 'I'), 200, [
+            $fileName = 'Sales_List_Report_' . now()->format('Y_m_d_His') . '.pdf';
+            $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+            return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
             ]);
         }
 
@@ -119,7 +123,9 @@ class SalesController extends Controller
         $users  = User::get();
         $products = Product::with('latestPurchase')->where('status', '1')->get();
         $existingClients = Customer::select('id', 'name', 'phone', 'address')->get();
-        return view('frontend.pages.sales.create', compact('products', 'users', 'existingClients'));
+        $paymentAccounts = getPaymentAccounts();
+        $paymentMethods = getPaymentMethodList();
+        return view('frontend.pages.sales.create', compact('products', 'users', 'existingClients', 'paymentAccounts', 'paymentMethods'));
     }
 
     /**
@@ -168,52 +174,63 @@ public function store(StoreSaleRequest $request)
      */
     public function edit(string $id)
     {
-        $sales = Sale::join('customers', 'customers.id', '=', 'sales.customer_id')
-            ->where('sales.id', $id)
-            ->select('sales.*')
-            ->first();
+        $sales = Sale::with(['customer', 'client', 'items.product'])->find($id);
         if (!$sales) abort(404);
-        $users  = User::get();
-        $products = Product::where('status', '1')->get();
 
-        $customer = Customer::where('id', $sales->customer_id)->first();
-        if (!$customer) abort(404);
+        $users = User::get();
+        $products = Product::with(['latestPurchase', 'inventory'])->where('status', '1')->get();
+        $customer = $sales->sale_type == 'project' ? $sales->client : $sales->customer;
+        if (!$customer) {
+            $customer = (object)[
+                'id' => null,
+                'name' => '',
+                'phone' => '',
+                'address' => '',
+            ];
+        }
 
-        $items = SalesItem::where('order_id',  $sales->id)->get();
+        $existingClients = Customer::select('id', 'name', 'phone', 'address')->get();
+        $items = SalesItem::with('product')->where('order_id', $sales->id)->get();
 
-        return view('frontend.pages.sales.edit', compact('sales', 'products', 'items', 'customer'));
+        return view('frontend.pages.sales.edit', compact('sales', 'products', 'items', 'customer', 'existingClients', 'users'));
     }
 
-    
     public function update(Request $request, string $id)
     {
         $validated = $request->validate([
-            'name' => 'required|string',
-            'phone' => 'required|string',
-            'address' => 'nullable|string',
-            'product' => 'required|array',
-            'product.*' => 'required|integer|exists:products,id',
-            'qty' => 'required|array',
-            'qty.*' => 'required|numeric|min:1',
-            'unit_price' => 'required|array',
-            'unit_price.*' => 'required|numeric|min:1',
-            'discount' => 'nullable|numeric|min:0',
+            'name'             => 'required|string',
+            'phone'            => 'required|string',
+            'address'          => 'nullable|string',
+            'product'          => 'required|array',
+            'product.*'        => 'required|integer|exists:products,id',
+            'qty'              => 'required|array',
+            'qty.*'            => 'required|numeric|min:1',
+            'unit_price'       => 'required|array',
+            'unit_price.*'     => 'required|numeric|min:0',
+            'subTotal'         => 'nullable|numeric|min:0',
+            'discount'         => 'nullable|numeric|min:0',
+            'vat'              => 'nullable|numeric|min:0',
+            'tax'              => 'nullable|numeric|min:0',
+            'delivery_charge'  => 'nullable|numeric|min:0',
+            'grandTotal'       => 'nullable|numeric|min:0',
             'advanced_payment' => 'nullable|numeric|min:0',
+            'duePayment'       => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
 
         try {
+            $sale = Sale::findOrFail($id);
 
-            // FirstOrCreate customer
+            // FirstOrCreate or update customer
             $customer = Customer::firstOrCreate(
-                ['name' => $validated['name'], 'phone' => $validated['phone']],
-                ['address' => $validated['address'] ?? null]
+                ['phone' => $validated['phone']],
+                ['name' => $validated['name'], 'address' => $validated['address'] ?? null]
             );
-
-            // Fetch sale
-            $sale = Sale::where('id', $id)->first();
-            if (!$sale) return redirect()->back()->with(['error' => 'Sale not found.']);
+            $customer->update([
+                'name' => $validated['name'],
+                'address' => $validated['address'] ?? $customer->address,
+            ]);
 
             // Restore old inventory
             $oldItems = SalesItem::where('order_id', $sale->id)->get();
@@ -225,6 +242,10 @@ public function store(StoreSaleRequest $request)
                 }
             }
 
+            // Restore old serials if any
+            \App\Models\ProductSerial::whereIn('sales_item_id', $oldItems->pluck('id'))
+                ->update(['status' => 'available', 'sales_item_id' => null]);
+
             // Delete old sale items
             SalesItem::where('order_id', $sale->id)->delete();
 
@@ -235,18 +256,34 @@ public function store(StoreSaleRequest $request)
             foreach ($validated['product'] as $index => $productId) {
                 $qty = $validated['qty'][$index];
                 $unitPrice = $validated['unit_price'][$index];
-
                 $total = $unitPrice * $qty;
                 $totalBill += $total;
 
-                SalesItem::create([
-                    'order_id' => $sale->id,
-                    'product_id' => $productId,
-                    'unit_price' => $unitPrice,
-                    'qty' => $qty,
-                    'total_price' => $total,
-                    'warranty' => $warranties[$productId] ?? 0,
+                $product = Product::with('latestPurchase')->find($productId);
+                $purchasePrice = $product?->latestPurchase?->unit_price ?? 0;
+                $itemProfit = ($unitPrice - $purchasePrice) * $qty;
+
+                $salesItem = SalesItem::create([
+                    'order_id'       => $sale->id,
+                    'product_id'     => $productId,
+                    'unit_price'     => $unitPrice,
+                    'qty'            => $qty,
+                    'total_price'    => $total,
+                    'warranty'       => $warranties[$productId] ?? 0,
+                    'purchase_price' => $purchasePrice,
+                    'profit'         => $itemProfit,
                 ]);
+
+                // Link serials if present
+                if (!empty($request->item_serials[$productId])) {
+                    $serialsToMark = (array)$request->item_serials[$productId];
+                    \App\Models\ProductSerial::where('product_id', $productId)
+                        ->whereIn('serial_number', $serialsToMark)
+                        ->update([
+                            'status' => 'sold',
+                            'sales_item_id' => $salesItem->id,
+                        ]);
+                }
 
                 // Deduct new inventory
                 $inventory = Inventory::where('product_id', $productId)->first();
@@ -256,29 +293,47 @@ public function store(StoreSaleRequest $request)
                 }
             }
 
-            // Calculate totals
-            $discount = $validated['discount'] ?? 0;
+            // Calculate totals with discount, VAT, TAX, and Delivery Charge
+            $discount = (float)($validated['discount'] ?? 0);
             if ($discount > $totalBill) $discount = $totalBill;
 
-            $advancedPayment = $request->advanced_payment ?? 0;
-            if ($advancedPayment > ($totalBill - $discount)) $advancedPayment = $totalBill - $discount;
+            $vatPercent = (float)($validated['vat'] ?? 0);
+            $taxPercent = (float)($validated['tax'] ?? 0);
+            $deliveryCharge = (float)($validated['delivery_charge'] ?? 0);
 
-            $payble = $totalBill - $discount;
+            $vatAmount = ($totalBill * $vatPercent) / 100;
+            $taxAmount = ($totalBill * $taxPercent) / 100;
+
+            $payble = ($totalBill - $discount) + $vatAmount + $taxAmount + $deliveryCharge;
+
+            $advancedPayment = (float)($validated['advanced_payment'] ?? 0);
+            if ($advancedPayment > $payble) $advancedPayment = $payble;
+
             $duePayment = $payble - $advancedPayment;
+
+            $status = match(true) {
+                $duePayment <= 0     => 'paid',
+                $advancedPayment > 0 => 'partial',
+                default              => 'credit',
+            };
 
             // Update sale
             $sale->update([
-                'bill' => $totalBill,
-                'discount' => $discount,
-                'payble' => $payble,
+                'bill'             => $totalBill,
+                'discount'         => $discount,
+                'vat'              => $vatPercent,
+                'tax'              => $taxPercent,
+                'delivery_charge'  => $deliveryCharge,
+                'payble'           => $payble,
                 'advanced_payment' => $advancedPayment,
-                'due_payment' => $duePayment,
-                'customer_id' => $customer->id,
+                'due_payment'      => $duePayment,
+                'customer_id'      => $customer->id,
+                'status'           => $status,
             ]);
 
             DB::commit();
 
-            return redirect()->route('sales.index', $sale->id)->with('success', 'Sale updated successfully.');
+            return redirect()->route('sales.index')->with('success', 'Sale updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with(['error' => $e->getMessage()]);
@@ -325,7 +380,7 @@ public function store(StoreSaleRequest $request)
 
     public function downloadInvoicePdf($id)
     {
-        $sales = Sale::with(['customer', 'client', 'returns.items.product', 'returns.processedBy'])->find($id);
+        $sales = Sale::with(['customer', 'client', 'returns.items.product', 'returns.processedBy', 'salesPerson'])->find($id);
         if (!$sales) {
             abort(404);
         }
@@ -353,18 +408,22 @@ public function store(StoreSaleRequest $request)
                 'mode' => 'utf-8',
                 'format' => 'A4',
                 'margin_top' => 42,
-                'margin_bottom' => 15,
+                'margin_bottom' => 32,
                 'margin_left' => 15,
                 'margin_right' => 15,
+                'margin_footer' => 24,
                 'default_font' => 'Helvetica',
             ]);
 
             $html = view('frontend.pages.sales.invoice_pdf', compact('sales', 'items', 'customer', 'returns'))->render();
             $mpdf->WriteHTML($html);
 
-            return response($mpdf->Output(($sales->order_no ?? $sales->id) . '.pdf', \Mpdf\Output\Destination::INLINE), 200, [
+            $filename = ($sales->order_no ?? $sales->id) . '.pdf';
+            $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+
+            return response($pdfContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . ($sales->order_no ?? $sales->id) . '.pdf"',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
             ]);
         } catch (\Exception $e) {
             Log::error('Sales invoice PDF generation failed: ' . $e->getMessage(), [
@@ -372,6 +431,117 @@ public function store(StoreSaleRequest $request)
             ]);
 
             return redirect()->back()->with('error', 'Failed to generate sales invoice PDF.');
+        }
+    }
+
+    public function downloadChallanPdf($id)
+    {
+        $sale = Sale::with(['customer', 'client', 'challan.challanItems'])->findOrFail($id);
+        $challan = $sale->challan;
+
+        if (!$challan) {
+            // Auto-generate challan for legacy/older sales on demand
+            $customer = $sale->sale_type == 'project' ? $sale->client : $sale->customer;
+            $items = SalesItem::with('product')->where('order_id', $sale->id)->get();
+
+            $company = CompanyDetail::default()->active()->first()
+                ?? CompanyDetail::active()->first()
+                ?? CompanyDetail::first();
+
+            $challanNumber = 'CHALLAN-' . date('Ymd') . '-' . str_pad(Challan::count() + 1, 4, '0', STR_PAD_LEFT);
+
+            $challan = Challan::create([
+                'challan_number'         => $challanNumber,
+                'reference_number'       => 'REF-' . ($sale->order_no ?? $sale->id),
+                'challan_date'           => $sale->created_at ? $sale->created_at->format('Y-m-d') : date('Y-m-d'),
+                'type'                   => $sale->sale_type == 'project' ? 'project' : 'sale',
+                'sale_id'                => $sale->id,
+                'project_id'             => $sale->project_id ?? null,
+                'customer_id'            => $sale->customer_id,
+                'client_id'              => $sale->client_id ?? null,
+                'recipient_organization' => $customer?->name ?? 'N/A',
+                'recipient_designation'  => 'The Managing Director',
+                'recipient_address'      => $customer?->address ?? ($customer?->phone ? 'Phone: ' . $customer->phone : 'N/A'),
+                'attention_to'           => $customer?->name ?? '',
+                'designation'            => 'The Managing Director',
+                'subject'                => 'Delivery Challan',
+                'notes'                  => 'Generated for invoice ' . $sale->order_no,
+                'company_name'           => $company?->name ?? 'Intelligent Technology',
+                'signatory_name'         => $company?->signatory_name ?? 'Engr. Shamsul Alam',
+                'signatory_designation'  => $company?->signatory_designation ?? 'Director (Technical)',
+                'company_phone'          => $company?->phone ?? '+880 XXXX-XXXXXX',
+                'company_email'          => $company?->email ?? 'info@intelligenttech.com',
+                'company_website'        => $company?->website ?? 'www.itechbd.net',
+                'show_signature'         => true,
+                'show_seal'              => true,
+            ]);
+
+            foreach ($items as $item) {
+                $desc = $item->product?->name ?? 'Product';
+                if ($item->product?->model) {
+                    $desc .= ' (' . $item->product->model . ')';
+                }
+
+                $serials = \App\Models\ProductSerial::where('sales_item_id', $item->id)->pluck('serial_number')->toArray();
+                if (!empty($serials)) {
+                    $desc .= "\nS/N: " . implode(', ', $serials);
+                }
+
+                ChallanItem::create([
+                    'challan_id'  => $challan->id,
+                    'description' => $desc,
+                    'quantity'    => $item->qty,
+                    'unit'        => 'Pcs',
+                ]);
+            }
+
+            $challan->load('challanItems');
+        }
+
+        $recipientName = $challan->recipient_organization ?? ($sale->customer?->name ?? $sale->client?->name ?? 'N/A');
+        $recipientAddress = $challan->recipient_address ?? ($sale->customer?->address ?? $sale->client?->address ?? 'N/A');
+
+        $signatoryName = $challan->signatory_name ?? 'Engr. Shamsul Alam';
+        $companyDetail = CompanyDetail::where('signatory_name', $signatoryName)->first()
+            ?? CompanyDetail::default()->active()->first()
+            ?? CompanyDetail::first();
+
+        $pdfData = [
+            'challan'                => $challan,
+            'recipient_organization' => $recipientName,
+            'recipient_designation'  => $challan->recipient_designation ?? 'The Managing Director',
+            'recipient_address'      => $recipientAddress,
+            'attention_to'           => $challan->attention_to ?? '',
+            'subject'                => $challan->subject ?? 'Delivery Challan',
+            'show_signature'         => $challan->show_signature ?? true,
+            'show_seal'              => $challan->show_seal ?? true,
+            'signature_image'        => $companyDetail?->signature_image ?? null,
+            'seal_image'             => $companyDetail?->seal_image ?? null,
+        ];
+
+        try {
+            ini_set('memory_limit', '512M');
+            $html = view('pdf.challan', $pdfData)->render();
+            $mpdf = new \Mpdf\Mpdf([
+                'mode' => 'utf-8',
+                'format' => 'A4',
+                'default_font' => 'Helvetica',
+            ]);
+            $mpdf->WriteHTML($html);
+
+            $fileName = 'Challan_' . ($challan->challan_number ?? $sale->order_no) . '.pdf';
+            $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+
+            return response($pdfContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Sales Challan PDF generation failed: ' . $e->getMessage(), [
+                'sale_id' => $id,
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to generate challan PDF.');
         }
     }
 
@@ -418,7 +588,10 @@ public function store(StoreSaleRequest $request)
         //     return $pdf->download('service_payments.pdf');
         // }
 
-        return view('frontend.pages.sales.payments', compact('payments', 'request', 'saleId', 'sale'));
+        $paymentAccounts = getPaymentAccounts();
+        $paymentMethods = getPaymentMethodList();
+
+        return view('frontend.pages.sales.payments', compact('payments', 'request', 'saleId', 'sale', 'paymentAccounts', 'paymentMethods'));
     }
 
     public function report(Request $request)
@@ -500,6 +673,7 @@ public function store(StoreSaleRequest $request)
 
         $salesReport = $salesQuery->orderBy('sales.created_at', 'desc')->get();
 
+        ini_set('memory_limit', '512M');
         $html = view('frontend.pages.report.sales.pdf', compact('salesReport', 'request'))->render();
         $mpdf = new \Mpdf\Mpdf([
             'mode' => 'utf-8',
@@ -507,8 +681,10 @@ public function store(StoreSaleRequest $request)
             'default_font' => 'Helvetica',
         ]);
         $mpdf->WriteHTML($html);
-        return response($mpdf->Output('sales-report.pdf', 'I'), 200, [
+        $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+        return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="sales-report.pdf"',
         ]);
     }
 
@@ -560,6 +736,7 @@ public function store(StoreSaleRequest $request)
             'sale_id' => 'required|exists:sales,id',
             'payment_amount' => 'required|numeric|min:0.01',
             'payment_method' => 'required|string',
+            'account_id' => 'nullable|exists:chart_of_accounts,id',
             'payment_date' => 'nullable|date',
             'notes' => 'nullable|string',
         ]);
@@ -568,7 +745,7 @@ public function store(StoreSaleRequest $request)
 
         try {
             $sale = Sale::findOrFail($request->sale_id);
-            $paymentAmount = $request->payment_amount;
+            $paymentAmount = (float)$request->payment_amount;
 
             // Check if payment amount exceeds due amount
             if ($paymentAmount > $sale->due_payment) {
@@ -605,6 +782,45 @@ public function store(StoreSaleRequest $request)
                 'payment_for' => 2, // Sales
             ]);
 
+            // Auto-post double entry voucher for Due Collection
+            try {
+                $depositAccount = null;
+                if (!empty($request->account_id)) {
+                    $depositAccount = \App\Models\ChartOfAccount::find($request->account_id);
+                }
+                if (!$depositAccount) {
+                    $depositAccount = \App\Models\ChartOfAccount::where('account_code', '1110')->first();
+                }
+
+                $arAcc = \App\Models\ChartOfAccount::where('account_code', '1130')->first();
+
+                if ($depositAccount && $arAcc && $paymentAmount > 0) {
+                    $accLabel = $depositAccount->account_name . ' (' . $depositAccount->account_code . ')';
+                    postJournalEntry([
+                        'entry_date' => $request->payment_date ? date('Y-m-d', strtotime($request->payment_date)) : date('Y-m-d'),
+                        'reference_type' => 'sale',
+                        'reference_id' => $sale->id,
+                        'description' => 'Due payment collected for Invoice ' . $sale->order_no . ' — Customer #' . $sale->customer_id . ($request->notes ? ' [' . $request->notes . ']' : ''),
+                        'items' => [
+                            [
+                                'account_id' => $depositAccount->id,
+                                'debit' => $paymentAmount,
+                                'credit' => 0.00,
+                                'description' => "Due collected via {$accLabel} for Invoice {$sale->order_no}",
+                            ],
+                            [
+                                'account_id' => $arAcc->id,
+                                'debit' => 0.00,
+                                'credit' => $paymentAmount,
+                                'description' => "Receivable due reduced for Invoice {$sale->order_no}",
+                            ]
+                        ]
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Due payment auto-journal notice: ' . $e->getMessage());
+            }
+
             DB::commit();
 
             return redirect()->back()->with('success', 'Payment of ৳' . number_format($paymentAmount, 2) . ' processed successfully!');
@@ -613,15 +829,6 @@ public function store(StoreSaleRequest $request)
             return redirect()->back()->with('error', 'Error processing payment: ' . $e->getMessage());
         }
     }
-
-//     public function duePayments()
-// {
-//     $sales = Sale::where('due_payment', '>', 0)
-//                 ->latest()
-//                 ->get();
-
-//     return view('frontend.pages.sales.due-payments', compact('sales'));
-// }
 
 public function duePayments()
 {
@@ -651,8 +858,14 @@ public function duePayments()
 
     // Merge retail sales and projects
     $allItems = $sales->merge($projects)->sortByDesc('created_at');
+    $paymentAccounts = getPaymentAccounts();
+    $paymentMethods = getPaymentMethodList();
 
-    return view('frontend.pages.sales.due-payments', ['sales' => $allItems]);
+    return view('frontend.pages.sales.due-payments', [
+        'sales' => $allItems,
+        'paymentAccounts' => $paymentAccounts,
+        'paymentMethods' => $paymentMethods,
+    ]);
 }
 
 public function duePaymentsPdf()
@@ -681,6 +894,7 @@ public function duePaymentsPdf()
 
     $allItems = $sales->merge($projects)->sortByDesc('created_at');
 
+    ini_set('memory_limit', '512M');
     $html = view('pdf.due_payments', ['sales' => $allItems])->render();
     $mpdf = new \Mpdf\Mpdf([
         'mode' => 'utf-8',
@@ -689,8 +903,11 @@ public function duePaymentsPdf()
     ]);
     $mpdf->WriteHTML($html);
 
-    return response($mpdf->Output('Due_Payments_Report_' . now()->format('Y_m_d_His') . '.pdf', 'I'), 200, [
+    $fileName = 'Due_Payments_Report_' . now()->format('Y_m_d_His') . '.pdf';
+    $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+    return response($pdfContent, 200, [
         'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="' . $fileName . '"',
     ]);
 }
 

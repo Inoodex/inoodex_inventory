@@ -56,6 +56,11 @@ class Sale extends Model
         return $this->hasMany(SalesItem::class, 'order_id');
     }
 
+    public function challan()
+    {
+        return $this->hasOne(Challan::class, 'sale_id');
+    }
+
     public function returns()
     {
         return $this->hasMany(ProductReturn::class, 'sale_id');
@@ -90,10 +95,5 @@ public function salesBy()
     public function salesPerson()
     {
         return $this->belongsTo(User::class, 'sales_by');
-    }
-
-    public function challans()
-    {
-        return $this->hasMany(Challan::class, 'sale_id');
     }
 }

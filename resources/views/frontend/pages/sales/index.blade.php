@@ -61,37 +61,7 @@
     }
     .table-custom th, .table-custom td {
         white-space: nowrap;
-    }
-    .card, .card-body {
-        overflow: visible !important;
-    }
-    .table-responsive {
-        overflow: visible !important;
-    }
-    @media (max-width: 991.98px) {
-        .table-responsive {
-            overflow-x: auto !important;
-            overflow-y: visible !important;
-            min-height: 260px;
-        }
-    }
-    .table-custom {
-        overflow: visible !important;
-    }
-    .table-custom td {
-        position: relative;
-    }
-    .table-custom .dropdown-menu {
-        z-index: 1060 !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
-    }
-    .table-custom tbody tr:last-child .dropdown-menu,
-    .table-custom tbody tr:nth-last-child(2) .dropdown-menu {
-        bottom: 100% !important;
-        top: auto !important;
-        margin-bottom: 6px !important;
-    }
-</style>
+    }</style>
 @endpush
 
 @section('content')
@@ -232,7 +202,7 @@
                                 </td>
                                 <td>
                                     <div>
-                                        <span class="fw-bold text-dark d-block">{{ $customerName }}</span>
+                                        <span class="fw-bold text-dark d-block">{{ Str::limit($customerName, 20) }}</span>
                                         <small class="text-muted fs-7"><i class="fe fe-phone me-1"></i>{{ $customerPhone }}</small>
                                     </div>
                                 </td>
@@ -259,7 +229,7 @@
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="dropdown">
-                                        <a href="javascript:void(0)" class="btn-action-icon shadow-none" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false">
+                                        <a href="javascript:void(0)" class="btn-action-icon shadow-none" data-bs-toggle="dropdown" aria-expanded="false">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </a>
                                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
@@ -269,6 +239,13 @@
                                                         href="{{ route('sales.invoice.pdf', $service->id) }}">
                                                         <i class="fe fe-download text-info"></i>
                                                         <span>Download PDF</span>
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item py-2 d-flex align-items-center gap-2" target="_blank"
+                                                        href="{{ route('sales.challan.pdf', $service->id) }}">
+                                                        <i class="fe fe-file-text text-success"></i>
+                                                        <span>Download Challan</span>
                                                     </a>
                                                 </li>
                                                 <li>

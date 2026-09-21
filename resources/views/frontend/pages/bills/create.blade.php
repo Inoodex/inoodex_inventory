@@ -98,23 +98,19 @@
             <div class="card-body p-4">
                 <h6 class="fw-bold text-success mb-3"><i class="fe fe-check-circle me-2"></i>Selected Order Overview</h6>
                 <div class="row g-3">
-                    <div class="col-md-2 col-6">
+                    <div class="col-md-3 col-6">
                         <span class="text-muted small d-block">Reference No</span>
                         <strong class="text-dark" id="detail-reference">-</strong>
                     </div>
-                    <div class="col-md-2 col-6">
+                    <div class="col-md-3 col-6">
                         <span class="text-muted small d-block">Order Date</span>
                         <strong class="text-dark" id="detail-date">-</strong>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <span class="text-muted small d-block">Sales By</span>
-                        <strong class="text-dark" id="detail-sales-by">-</strong>
                     </div>
                     <div class="col-md-3 col-6">
                         <span class="text-muted small d-block">Total Amount</span>
                         <strong class="text-primary" id="detail-amount">-</strong>
                     </div>
-                    <div class="col-md-2 col-6">
+                    <div class="col-md-3 col-6">
                         <span class="text-muted small d-block">Due Payment</span>
                         <strong class="text-danger" id="detail-due">-</strong>
                     </div>
@@ -226,17 +222,20 @@
             </div>
         </div>
 
-        <!-- PDF & Dispatch Options -->
+        <!-- PDF Print Options -->
         <div class="card border-0 shadow-sm rounded-3 mb-4">
             <div class="card-body p-4">
-                <h6 class="fw-bold text-dark mb-3"><i class="fe fe-printer me-2 text-primary"></i>PDF Print &amp; Dispatch Options</h6>
-                <div class="d-flex flex-wrap gap-4">
+                <h6 class="fw-bold text-dark mb-3"><i class="fe fe-printer me-2 text-primary"></i>PDF Print &amp; Document Options</h6>
+                <div class="d-flex flex-wrap gap-4 mb-3 pb-3 border-bottom">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" name="auto_generate_challan" id="auto_generate_challan" value="1" {{ old('auto_generate_challan', true) ? 'checked' : '' }}>
                         <label class="form-check-label fw-semibold text-dark" for="auto_generate_challan">
-                            <i class="fe fe-truck text-success me-1"></i> Auto-generate Delivery Challan alongside this Bill
+                            <i class="fe fe-truck me-1 text-primary"></i>Also generate Delivery Challan automatically
                         </label>
+                        <small class="d-block text-muted">Automatically creates a matching delivery challan with the same items and recipient</small>
                     </div>
+                </div>
+                <div class="d-flex flex-wrap gap-4">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" name="show_signature" id="show_signature" value="1" {{ old('show_signature', true) ? 'checked' : '' }}>
                         <label class="form-check-label fw-semibold text-dark" for="show_signature">
@@ -388,7 +387,6 @@ Govt. VAT & TAX: Prices are inclusive of all kinds of TAX & VAT as per governmen
 
         document.getElementById('detail-reference').textContent = '#' + sale.order_no;
         document.getElementById('detail-date').textContent = sale.created_at;
-        document.getElementById('detail-sales-by').textContent = sale.sales_by_name || 'N/A';
         document.getElementById('detail-amount').textContent = '৳' + parseFloat(sale.payble).toFixed(2);
         document.getElementById('detail-due').textContent = '৳' + parseFloat(sale.due_payment || 0).toFixed(2);
         autoInfoSection.style.display = 'block';
@@ -405,7 +403,6 @@ Govt. VAT & TAX: Prices are inclusive of all kinds of TAX & VAT as per governmen
 
         document.getElementById('detail-reference').textContent = proj.name;
         document.getElementById('detail-date').textContent = proj.created_at;
-        document.getElementById('detail-sales-by').textContent = '{{ Auth::user()->name ?? "N/A" }}';
         document.getElementById('detail-amount').textContent = '৳' + parseFloat(proj.budget).toFixed(2);
         document.getElementById('detail-due').textContent = '৳' + parseFloat(proj.due_payment || 0).toFixed(2);
         autoInfoSection.style.display = 'block';

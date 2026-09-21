@@ -136,9 +136,9 @@
                 <div style="font-size: 13px; font-weight: 700; color: #0f172a;">{{ $recipient_organization ?? ($challan->client_name ?? 'N/A') }}</div>
                 <div style="font-size: 12px; color: #475569; margin-top: 2px;">{{ $recipient_designation ?? 'Director (IT)' }}</div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 2px;">{{ $recipient_address ?? ($challan->client_address ?? 'N/A') }}</div>
-                @if(!empty($attention_to))
+                <!-- @if(!empty($attention_to))
                     <div style="font-size: 11px; color: #4f46e5; margin-top: 4px; font-weight: 600;">Attention: {{ $attention_to }}</div>
-                @endif
+                @endif -->
             </td>
         </tr>
     </table>
@@ -179,49 +179,42 @@
     @if(!isset($show_signature) || $show_signature || !isset($show_seal) || $show_seal)
         <table style="width: 100%; border-collapse: collapse; margin-top: 60px;">
             <tr>
-                <td width="40%" align="left" style="vertical-align: bottom;">
-                    <div style="font-size: 11px; font-weight: 600; color: #475569;">
-                        <span style="border-top: 1.5px solid #475569; padding-top: 4px; display: inline-block;">
-                            Customer's Signature
-                        </span>
-                    </div>
-                </td>
-                <td width="60%" align="right" style="vertical-align: bottom;">
-                    <table align="right" style="border-collapse: collapse; margin-left: auto;">
+                <td width="33%" align="center" style="vertical-align: bottom;">
+                    <table align="center" style="width: 160px; margin: 0 auto 8px auto; border-collapse: collapse;">
                         <tr>
-                            <td style="vertical-align: bottom; text-align: left;">
-                                @if(!isset($show_signature) || $show_signature)
-                                    @if(!empty($signature_image) && file_exists(public_path($signature_image)))
-                                        <div style="text-align: left; margin-bottom: 4px;">
-                                            <img src="{{ public_path($signature_image) }}" style="max-height: 50px;" alt="Signature">
-                                        </div>
-                                    @endif
-                                    <div style="display: inline-block; text-align: left;">
-                                        <div style="font-size: 12px; font-weight: 700; color: #0f172a;">
-                                            <span style="border-top: 1.5px solid #475569; padding-top: 4px; display: inline-block;">
-                                                {{ $challan->signatory_name ?? 'N/A' }}
-                                            </span>
-                                        </div>
-                                        <div style="font-size: 11px; color: #475569; margin-top: 2px;">{{ $challan->signatory_designation ?? 'N/A' }}</div>
-                                        <div style="font-size: 11px; font-weight: 600; color: #1e293b; margin-top: 2px;">{{ $challan->company_name ?? 'N/A' }}</div>
-                                    </div>
-                                @endif
-                            </td>
-                            @if(!isset($show_seal) || $show_seal)
-                                @php
-                                    $customSeal = $seal_image ?? null;
-                                    $sealSrc = file_exists(public_path('assets/invoice/sill.png')) 
-                                        ? public_path('assets/invoice/sill.png') 
-                                        : (($customSeal && file_exists(public_path($customSeal))) ? public_path($customSeal) : null);
-                                @endphp
-                                @if($sealSrc)
-                                    <td style="vertical-align: bottom; text-align: right;">
-                                        <img src="{{ $sealSrc }}" style="max-height: 80px; margin-left: -45px; margin-bottom: 12px;" alt="Company Seal">
-                                    </td>
-                                @endif
-                            @endif
+                            <td style="border-top: 1.5px solid #475569; height: 1px; font-size: 1px; line-height: 1px;">&nbsp;</td>
                         </tr>
                     </table>
+                    <div style="font-size: 11px; font-weight: 600; color: #475569;">Customer's Signature</div>
+                </td>
+                <td width="34%" align="center" style="vertical-align: bottom;">
+                    @if(!isset($show_seal) || $show_seal)
+                        @php
+                            $sealImg = $seal_image ?? null;
+                            $sealSrc = ($sealImg && file_exists(public_path($sealImg))) ? public_path($sealImg) : (file_exists(public_path('sil.png')) ? public_path('sil.png') : null);
+                        @endphp
+                        @if($sealSrc)
+                            <img src="{{ $sealSrc }}" style="max-height: 75px;" alt="Company Seal">
+                        @endif
+                    @endif
+                </td>
+                <td width="33%" align="center" style="vertical-align: bottom;">
+                    @if(!isset($show_signature) || $show_signature)
+                        @if(!empty($signature_image) && file_exists(public_path($signature_image)))
+                            <div style="text-align: center; margin-bottom: 4px;">
+                                <img src="{{ public_path($signature_image) }}" style="max-height: 50px;" alt="Signature">
+                            </div>
+                        @endif
+                        <div style="display: inline-block; text-align: center;">
+                            <div style="font-size: 12px; font-weight: 700; color: #0f172a;">
+                                <span style="border-top: 1.5px solid #475569; padding-top: 4px; display: inline-block;">
+                                    {{ $challan->signatory_name ?? 'N/A' }}
+                                </span>
+                            </div>
+                            <div style="font-size: 11px; color: #475569; margin-top: 2px;">{{ $challan->signatory_designation ?? 'N/A' }}</div>
+                            <div style="font-size: 11px; font-weight: 600; color: #1e293b; margin-top: 2px;">{{ $challan->company_name ?? 'N/A' }}</div>
+                        </div>
+                    @endif
                 </td>
             </tr>
         </table>

@@ -61,37 +61,7 @@
     }
     .table-custom th, .table-custom td {
         white-space: nowrap;
-    }
-    .card, .card-body {
-        overflow: visible !important;
-    }
-    .table-responsive {
-        overflow: visible !important;
-    }
-    @media (max-width: 991.98px) {
-        .table-responsive {
-            overflow-x: auto !important;
-            overflow-y: visible !important;
-            min-height: 260px;
-        }
-    }
-    .table-custom {
-        overflow: visible !important;
-    }
-    .table-custom td {
-        position: relative;
-    }
-    .table-custom .dropdown-menu {
-        z-index: 1060 !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
-    }
-    .table-custom tbody tr:last-child .dropdown-menu,
-    .table-custom tbody tr:nth-last-child(2) .dropdown-menu {
-        bottom: 100% !important;
-        top: auto !important;
-        margin-bottom: 6px !important;
-    }
-</style>
+    }</style>
 @endpush
 
 @section('content')
@@ -210,17 +180,13 @@
                             <th>Bill Number</th>
                             <th>Bill Date</th>
                             <th>Type</th>
-                            <th>Sales By</th>
                             <th>Total Amount</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody class="border-top-0">
                         @forelse($bills as $bill)
-                            @php
-                                $salesPersonName = $bill->sale->salesPerson->name ?? ($bill->sale->salesBy->name ?? 'N/A');
-                            @endphp
-                            <tr class="bill-row" data-search="{{ strtolower($bill->bill_number . ' ' . $bill->type . ' ' . $salesPersonName . ' ' . $bill->total_amount) }}" data-type="{{ strtolower($bill->type) }}">
+                            <tr class="bill-row" data-search="{{ strtolower($bill->bill_number . ' ' . $bill->type . ' ' . $bill->total_amount) }}" data-type="{{ strtolower($bill->type) }}">
                                 <td class="ps-4 text-muted fw-semibold">{{ $loop->iteration }}</td>
                                 <td>
                                     <span class="fw-bold text-primary font-monospace">{{ $bill->bill_number }}</span>
@@ -242,18 +208,13 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="text-dark small fw-semibold">
-                                        {{ $salesPersonName }}
-                                    </span>
-                                </td>
-                                <td>
                                     <span class="badge badge-soft-primary px-3 py-1 rounded-pill fs-7">
                                         ৳{{ number_format($bill->total_amount, 2) }}
                                     </span>
                                 </td>
                                 <td>
                                     <div class="dropdown">
-                                        <a href="javascript:void(0)" class="btn-action-icon shadow-none" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false">
+                                        <a href="javascript:void(0)" class="btn-action-icon shadow-none" data-bs-toggle="dropdown" aria-expanded="false">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </a>
                                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
@@ -275,17 +236,12 @@
                                                     <span>Download PDF</span>
                                                 </a>
                                             </li>
-                                            @php
-                                                $linkedChallan = $bill->sale?->challans?->last() ?? ($bill->project?->challans?->last() ?? null);
-                                            @endphp
-                                            @if($linkedChallan)
-                                                <li>
-                                                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-success" href="{{ route('challans.preview', $linkedChallan->id) }}" target="_blank">
-                                                        <i class="fe fe-truck text-success"></i>
-                                                        <span>Preview Challan</span>
-                                                    </a>
-                                                </li>
-                                            @endif
+                                            <li>
+                                                <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="{{ route('challans.index') }}">
+                                                    <i class="fe fe-truck text-warning"></i>
+                                                    <span>Delivery Challans</span>
+                                                </a>
+                                            </li>
                                             <li><hr class="dropdown-divider opacity-50"></li>
                                             <li>
                                                 <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger" href="javascript:void(0)"
@@ -304,7 +260,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-5">
+                                <td colspan="6" class="text-center py-5">
                                     <div class="d-flex flex-column align-items-center justify-content-center">
                                         <div class="avatar avatar-xl bg-primary-light text-primary rounded-circle mb-3 d-flex align-items-center justify-content-center">
                                             <i class="fe fe-file-text fs-1"></i>

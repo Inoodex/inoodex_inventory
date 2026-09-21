@@ -15,9 +15,10 @@
             background-image-resize: 6;
             @endif
             margin-top: 42mm;
-            margin-bottom: 15mm;
+            margin-bottom: 32mm;
             margin-left: 15mm;
             margin-right: 15mm;
+            footer: invoiceFooter;
         }
 
         * {
@@ -44,18 +45,12 @@
                 <h1 style="font-size: 26px; color: #0f172a; margin-bottom: 4px;">INVOICE</h1>
                 <div style="font-size: 15px; font-weight: 700; color: #4f46e5;">Invoice No: #{{ $sales->order_no }}</div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Invoice Date: {{ $sales->created_at ? $sales->created_at->format('d M Y') : date('d M Y') }}</div>
-                @php
-                    $salesPersonName = $sales->salesPerson->name ?? ($sales->salesBy->name ?? null);
-                @endphp
-                @if(!empty($salesPersonName))
-                    <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Sales By: <strong style="color: #0f172a;">{{ $salesPersonName }}</strong></div>
-                @endif
             </td>
         </tr>
     </table>
 
     <!-- Customer Info Card -->
-    <table style="width: 100%; border-collapse: separate; border-spacing: 0; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; margin-bottom: 25px;">
+    <table style="width: 100%; border-collapse: separate; border-spacing: 0; background: transparent; border: 1px solid #cbd5e1; border-radius: 12px; margin-bottom: 25px;">
         <tr>
             <td style="padding: 14px 18px; width: 33.33%; vertical-align: top;">
                 <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; margin-bottom: 4px;">CUSTOMER / CLIENT</div>
@@ -241,7 +236,7 @@
     <!-- Signatures -->
     <table style="width: 100%; border-collapse: collapse; margin-top: 60px;">
         <tr>
-            <td width="50%" align="center" style="vertical-align: bottom;">
+            <td width="50%" align="center" style="vertical-align: top;">
                 <table align="center" style="width: 180px; margin: 0 auto 8px auto; border-collapse: collapse;">
                     <tr>
                         <td style="border-top: 1.5px solid #475569; height: 1px; font-size: 1px; line-height: 1px;">&nbsp;</td>
@@ -249,16 +244,25 @@
                 </table>
                 <div style="font-size: 11px; font-weight: 600; color: #475569;">Customer Signature</div>
             </td>
-            <td width="50%" align="center" style="vertical-align: bottom;">
+            <td width="50%" align="center" style="vertical-align: top;">
                 <table align="center" style="width: 180px; margin: 0 auto 8px auto; border-collapse: collapse;">
                     <tr>
                         <td style="border-top: 1.5px solid #475569; height: 1px; font-size: 1px; line-height: 1px;">&nbsp;</td>
                     </tr>
                 </table>
-                <div style="font-size: 11px; font-weight: 600; color: #475569;">Authorized Signature</div>
+                <div style="font-size: 11px; font-weight: 600; color: #4f46e5;">Authorized Signature</div>
             </td>
         </tr>
     </table>
+
+    <!-- Footer fixed at bottom right above pad graphic -->
+    <htmlpagefooter name="invoiceFooter">
+        @if(!empty($sales->salesPerson))
+        <div style="text-align: right; font-size: 10.5px; color: #64748b;">
+            Sold By: <strong style="color: #0f172a;">{{ $sales->salesPerson->name }}</strong>
+        </div>
+        @endif
+    </htmlpagefooter>
 
 </body>
 </html>

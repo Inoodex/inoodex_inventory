@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Challan;
+use App\Models\ChallanItem;
+use App\Models\CompanyDetail;
 use App\Models\Customer;
 use App\Models\Inventory;
 use App\Models\Payment;
@@ -54,41 +57,157 @@ class SaleService
             // 5. Create line items and deduct inventory
             $this->createSaleItems($sale, $data);
 
-            // 6. Auto-post double-entry journal voucher for Sale
+            // 6. Record payment and Auto-post double-entry journal voucher for Sale
             try {
+                $paid = (float) $sale->advanced_payment;
+                $due = (float) $sale->due_payment;
+                $grandTotal = (float) $sale->payble;
+                $paymentMethod = $data['payment_method'] ?? 'cash';
+                $paymentRef = $data['payment_ref'] ?? null;
+
+                // Resolve Deposit Account (chosen account or default Cash in Hand 1110)
+                $depositAccount = null;
+                if (!empty($data['account_id'])) {
+                    $depositAccount = \App\Models\ChartOfAccount::find($data['account_id']);
+                }
+                if (!$depositAccount) {
+                    $depositAccount = \App\Models\ChartOfAccount::where('account_code', '1110')->first();
+                }
+
+                // If upfront payment was made, create linked Payment record
+                if ($paid > 0) {
+                    Payment::create([
+                        'sale_id'            => $sale->id,
+                        'customer_id'        => $sale->customer_id,
+                        'payment_for'        => 2, // Sale
+                        'payment_method'     => $paymentMethod,
+                        'amount'             => $paid,
+                        'due_before_payment' => $grandTotal,
+                        'due_after_payment'  => $due,
+                        'notes'              => $paymentRef,
+                        'status'             => 1,
+                        'created_by'         => Auth::id(),
+                        'updated_by'         => Auth::id(),
+                    ]);
+                }
+
+                // Auto-post double-entry voucher
                 $arAcc = \App\Models\ChartOfAccount::where('account_code', '1130')->first();
-                $cashAcc = \App\Models\ChartOfAccount::where('account_code', '1110')->first();
                 $revAcc = \App\Models\ChartOfAccount::where('account_code', '4110')->first();
 
                 if ($arAcc && $revAcc) {
                     $items = [];
-                    $grandTotal = (float) $sale->payble;
-                    $paid = (float) $sale->advanced_payment;
-                    $due = (float) $sale->due_payment;
 
-                    if ($paid > 0 && $cashAcc) {
-                        $items[] = ['account_id' => $cashAcc->id, 'debit' => $paid, 'credit' => 0.00, 'description' => 'Cash/Bank collected for Sale ' . $sale->order_no];
+                    if ($paid > 0 && $depositAccount) {
+                        $accLabel = $depositAccount->account_name . ' (' . $depositAccount->account_code . ')';
+                        $desc = "Payment collected via {$accLabel} for Invoice {$sale->order_no}" . ($paymentRef ? " [Ref: {$paymentRef}]" : '');
+                        $items[] = [
+                            'account_id' => $depositAccount->id,
+                            'debit' => $paid,
+                            'credit' => 0.00,
+                            'description' => $desc
+                        ];
                     }
+
                     if ($due > 0) {
-                        $items[] = ['account_id' => $arAcc->id, 'debit' => $due, 'credit' => 0.00, 'description' => 'Receivable due for Sale ' . $sale->order_no];
+                        $items[] = [
+                            'account_id' => $arAcc->id,
+                            'debit' => $due,
+                            'credit' => 0.00,
+                            'description' => 'Receivable due for Invoice ' . $sale->order_no
+                        ];
                     }
-                    $items[] = ['account_id' => $revAcc->id, 'debit' => 0.00, 'credit' => $grandTotal, 'description' => 'Sales revenue recognized'];
+
+                    $items[] = [
+                        'account_id' => $revAcc->id,
+                        'debit' => 0.00,
+                        'credit' => $grandTotal,
+                        'description' => 'Sales revenue recognized for Invoice ' . $sale->order_no
+                    ];
 
                     postJournalEntry([
                         'entry_date' => date('Y-m-d'),
                         'reference_type' => 'sale',
                         'reference_id' => $sale->id,
-                        'description' => 'Invoice ' . $sale->order_no . ' — Customer #' . $sale->customer_id,
+                        'description' => 'Invoice ' . $sale->order_no . ' — Customer #' . $sale->customer_id . ($paymentRef ? " (Ref: {$paymentRef})" : ''),
                         'items' => $items
                     ]);
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Sale auto-journal posting notice: ' . $e->getMessage());
+            }
 
-            // 7. Broadcast real-time Pusher event
+            // 7. Automatically generate delivery challan
+            try {
+                $this->generateChallanForSale($sale, $customer, $data);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Auto-challan generation failed: ' . $e->getMessage());
+            }
+
+            // 8. Broadcast real-time Pusher event
             event(new \App\Events\SaleCreatedEvent($sale));
 
             return $sale;
         });
+    }
+
+    /**
+     * Automatically generate a linked Delivery Challan for a new Sale.
+     */
+    public function generateChallanForSale(Sale $sale, Customer $customer, array $data): Challan
+    {
+        $company = CompanyDetail::default()->active()->first()
+            ?? CompanyDetail::active()->first()
+            ?? CompanyDetail::first();
+
+        $challanNumber = 'CHALLAN-' . date('Ymd') . '-' . str_pad(Challan::count() + 1, 4, '0', STR_PAD_LEFT);
+
+        $challan = Challan::create([
+            'challan_number'         => $challanNumber,
+            'reference_number'       => 'REF-' . ($sale->order_no ?? $sale->id),
+            'challan_date'           => date('Y-m-d'),
+            'type'                   => 'sale',
+            'sale_id'                => $sale->id,
+            'customer_id'            => $customer->id,
+            'recipient_organization' => $customer->name ?? 'N/A',
+            'recipient_designation'  => 'The Managing Director',
+            'recipient_address'      => $customer->address ?? ($customer->phone ? 'Phone: ' . $customer->phone : 'N/A'),
+            'attention_to'           => $customer->name ?? '',
+            'designation'            => 'The Managing Director',
+            'subject'                => 'Delivery Challan',
+            'notes'                  => 'Generated automatically for invoice ' . $sale->order_no,
+            'company_name'           => $company?->name ?? 'Intelligent Technology',
+            'signatory_name'         => $company?->signatory_name ?? 'Engr. Shamsul Alam',
+            'signatory_designation'  => $company?->signatory_designation ?? 'Director (Technical)',
+            'company_phone'          => $company?->phone ?? '+880 XXXX-XXXXXX',
+            'company_email'          => $company?->email ?? 'info@intelligenttech.com',
+            'company_website'        => $company?->website ?? 'www.itechbd.net',
+            'show_signature'         => true,
+            'show_seal'              => true,
+        ]);
+
+        foreach ($data['product'] as $index => $productId) {
+            $product = Product::find($productId);
+            $qty = $data['qty'][$index];
+            $desc = $product?->name ?? 'Product';
+            if ($product?->model) {
+                $desc .= ' (' . $product->model . ')';
+            }
+
+            if (!empty($data['item_serials'][$productId])) {
+                $serials = (array) $data['item_serials'][$productId];
+                $desc .= "\nS/N: " . implode(', ', $serials);
+            }
+
+            ChallanItem::create([
+                'challan_id'  => $challan->id,
+                'description' => $desc,
+                'quantity'    => $qty,
+                'unit'        => 'Pcs',
+            ]);
+        }
+
+        return $challan;
     }
 
     /**

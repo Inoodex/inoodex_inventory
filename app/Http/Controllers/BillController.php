@@ -12,7 +12,7 @@ class BillController extends Controller
 {
  public function index(Request $request)
 {
-    $query = Bill::with(['client', 'vendor', 'project.challans', 'purchase', 'items', 'sale.salesPerson', 'sale.challans']);
+    $query = Bill::with(['client', 'vendor', 'project', 'purchase', 'items']);
 
     // Type filter
     if ($request->has('type') && $request->type != '') {
@@ -57,14 +57,13 @@ public function create()
     public function getSales()
     {
         try {
-            $sales = Sale::with(['customer', 'client', 'items.product', 'salesPerson', 'salesBy'])
+            $sales = Sale::with(['customer', 'client', 'items.product'])
                 ->latest()
                 ->get()
                 ->map(function ($sale) {
                     $customerName = $sale->sale_type == 'project' ? ($sale->client->name ?? 'N/A') : ($sale->customer->name ?? 'N/A');
                     $customerPhone = $sale->sale_type == 'project' ? ($sale->client->phone ?? 'N/A') : ($sale->customer->phone ?? 'N/A');
                     $customerAddress = $sale->sale_type == 'project' ? ($sale->client->address ?? 'N/A') : ($sale->customer->address ?? 'N/A');
-                    $salesPersonName = $sale->salesPerson->name ?? ($sale->salesBy->name ?? 'N/A');
 
                     $items = $sale->items->map(function ($item) {
                         return [
@@ -86,8 +85,6 @@ public function create()
                         'customer_name' => $customerName,
                         'customer_phone' => $customerPhone,
                         'customer_address' => $customerAddress,
-                        'sales_by' => $sale->sales_by,
-                        'sales_by_name' => $salesPersonName,
                         'payble' => $sale->payble ?? $sale->total ?? 0,
                         'total_amount' => $sale->payble ?? $sale->total ?? 0,
                         'due_payment' => $sale->due_payment ?? 0,
@@ -242,30 +239,18 @@ public function store(Request $request)
         'subject' => $request->subject,
         'attention_to' => $request->attention_to,
         'designation' => $request->designation,
-        'show_signature' => $request->has('show_signature') ? (bool)$request->show_signature : true,
-        'show_seal' => $request->has('show_seal') ? (bool)$request->show_seal : true,
+        'show_signature' => $request->boolean('show_signature'),
+        'show_seal' => $request->boolean('show_seal'),
     ];
 
-    $autoGenerateChallan = $request->has('auto_generate_challan') ? (bool)$request->auto_generate_challan : true;
     $bill = null;
-    $createdChallan = null;
+    $challan = null;
 
-    DB::transaction(function () use (
-        $request,
-        $billData,
-        &$bill,
-        $clientName,
-        $clientAddress,
-        $customerId,
-        $clientId,
-        $companyDetail,
-        $autoGenerateChallan,
-        &$createdChallan
-    ) {
-        // 1. Create the bill
+    DB::transaction(function () use ($request, $billData, &$bill, &$challan, $customerId, $clientId, $clientName, $clientAddress, $companyDetail) {
+        // Create the bill
         $bill = Bill::create($billData);
 
-        // 2. Create bill items
+        // Create bill items
         foreach ($request->items as $item) {
             $qty = (int)($item['quantity'] ?? 1);
             $price = (float)($item['unit_price'] ?? 0);
@@ -281,26 +266,25 @@ public function store(Request $request)
             ]);
         }
 
-        // 3. Auto-generate Delivery Challan if requested
-        if ($autoGenerateChallan) {
+        // Auto-generate Delivery Challan only if the checkbox was checked
+        if ($request->boolean('auto_generate_challan')) {
             $challanNumber = 'CHALLAN-' . date('Ymd') . '-' . str_pad(Challan::count() + 1, 4, '0', STR_PAD_LEFT);
-            $challanRef = 'CHL-' . ($request->reference_number ? preg_replace('/^BIL-/i', '', $request->reference_number) : date('Ymd-His'));
 
             $challan = Challan::create([
                 'challan_number' => $challanNumber,
-                'reference_number' => $challanRef,
-                'challan_date' => $request->bill_date ?: date('Y-m-d'),
+                'reference_number' => $request->reference_number,
+                'challan_date' => $request->bill_date,
                 'type' => $request->bill_type,
                 'sale_id' => $request->bill_type === 'sale' ? (int)$request->selected_sale_id : null,
                 'project_id' => $request->bill_type === 'project' ? (int)$request->selected_project_id : null,
                 'customer_id' => $customerId,
                 'client_id' => $clientId,
-                'recipient_organization' => $clientName ?: 'N/A',
+                'recipient_organization' => $clientName,
                 'recipient_designation' => $request->designation ?? 'The Managing Director',
-                'recipient_address' => $clientAddress ?: 'N/A',
+                'recipient_address' => $clientAddress,
                 'attention_to' => $request->attention_to,
                 'designation' => $request->designation,
-                'subject' => 'Delivery Challan' . ($request->subject ? ' - ' . $request->subject : ''),
+                'subject' => 'Delivery Challan',
                 'notes' => $request->notes,
                 'company_name' => $companyDetail->name ?? 'Intelligent Technology',
                 'signatory_name' => $companyDetail->signatory_name ?? 'Engr. Shamsul Alam',
@@ -308,28 +292,26 @@ public function store(Request $request)
                 'company_phone' => $companyDetail->phone ?? '+880 XXXX-XXXXXX',
                 'company_email' => $companyDetail->email ?? 'info@intelligenttech.com',
                 'company_website' => $companyDetail->website ?? 'www.itechbd.net',
-                'show_signature' => $request->has('show_signature') ? (bool)$request->show_signature : true,
-                'show_seal' => $request->has('show_seal') ? (bool)$request->show_seal : true,
+                'show_signature' => $request->boolean('show_signature'),
+                'show_seal' => $request->boolean('show_seal'),
             ]);
 
-            // Add challan items
             foreach ($request->items as $item) {
-                $qty = (int)($item['quantity'] ?? 1);
                 ChallanItem::create([
                     'challan_id' => $challan->id,
                     'description' => $item['description'] ?? '',
-                    'quantity' => $qty,
+                    'quantity' => (int)($item['quantity'] ?? 1),
                     'unit' => $item['unit'] ?? 'Pcs',
+                    'serial' => $item['serial'] ?? null,
                 ]);
             }
-
-            $createdChallan = $challan;
         }
     });
 
-    $successMessage = $createdChallan
-        ? "Bill #{$bill->bill_number} and Delivery Challan #{$createdChallan->challan_number} generated successfully!"
-        : "Bill #{$bill->bill_number} generated successfully!";
+    $successMessage = 'Bill ' . ($bill->bill_number ?? '') . ' generated successfully!';
+    if ($challan) {
+        $successMessage .= ' Delivery Challan ' . $challan->challan_number . ' was also created automatically.';
+    }
 
     return redirect()->route('bills.index')->with('success', $successMessage);
 }
@@ -339,29 +321,14 @@ public function show($id)
     $bill = Bill::with([
         'billItems',
         'sale.customer', 
-        'sale.salesPerson',
         'project.client',
         'customer',
         'client'
     ])->findOrFail($id);
 
-    $salesByName = $bill->sale->salesPerson->name
-        ?? $bill->sale->salesBy->name
-        ?? null;
-
-    // Look for matching linked Delivery Challan
-    $linkedChallan = null;
-    if ($bill->sale_id) {
-        $linkedChallan = Challan::where('sale_id', $bill->sale_id)->latest()->first();
-    } elseif ($bill->project_id) {
-        $linkedChallan = Challan::where('project_id', $bill->project_id)->latest()->first();
-    }
-
     $data = [
         'bill' => $bill,
-        'linked_challan' => $linkedChallan,
         'amount_in_words' => $this->convertToWords($bill->total_amount),
-        'sales_by' => $salesByName,
         'subject' => $bill->subject ?? 'Bill for Supplying of Products/Services',
         'bank_details' => [
             'account_name' => $bill->bank_account_name ?? 'Intelligent Technology',
@@ -530,7 +497,6 @@ public function preview($id)
     $bill = Bill::with([
         'billItems',
         'sale.customer',
-        'sale.salesPerson',
         'project.client',
         'bankDetail',
         'companyDetail',
@@ -554,14 +520,9 @@ public function preview($id)
     if (empty($clientName)) $clientName = 'N/A';
     if (empty($clientAddress)) $clientAddress = 'N/A';
 
-    $salesByName = $bill->sale->salesPerson->name
-        ?? $bill->sale->salesBy->name
-        ?? null;
-
     $pdfData = [
         'bill' => $bill,
         'amount_in_words' => $this->convertToWords($bill->total_amount),
-        'sales_by' => $salesByName,
         'subject' => $bill->subject,
         'bank_details' => [
             'account_name' => $bill->bankDetail->account_name ?? 'Intelligent Technology',
@@ -591,6 +552,7 @@ public function preview($id)
         'show_seal' => $bill->show_seal ?? true,
     ];
 
+    ini_set('memory_limit', '512M');
     $html = view('pdf.bill', $pdfData)->render();
     $mpdf = new \Mpdf\Mpdf([
         'mode' => 'utf-8',
@@ -598,8 +560,11 @@ public function preview($id)
         'default_font' => 'Helvetica',
     ]);
     $mpdf->WriteHTML($html);
-    return response($mpdf->Output('bill-' . $bill->bill_number . '.pdf', 'I'), 200, [
+    $filename = 'bill-' . $bill->bill_number . '.pdf';
+    $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+    return response($pdfContent, 200, [
         'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="' . $filename . '"',
     ]);
 }
 
@@ -608,7 +573,6 @@ public function download($id)
     $bill = Bill::with([
         'billItems',
         'sale.customer',
-        'sale.salesPerson',
         'project.client',
         'bankDetail',
         'companyDetail',
@@ -635,14 +599,9 @@ public function download($id)
     if (empty($clientName)) $clientName = 'N/A';
     if (empty($clientAddress)) $clientAddress = 'N/A';
 
-    $salesByName = $bill->sale->salesPerson->name
-        ?? $bill->sale->salesBy->name
-        ?? null;
-
     $pdfData = [
         'bill' => $bill,
         'amount_in_words' => $this->convertToWords($bill->total_amount),
-        'sales_by' => $salesByName,
         'subject' => $bill->subject,
         'bank_details' => [
             'account_name' => $bill->bankDetail->account_name,
@@ -672,6 +631,7 @@ public function download($id)
         'show_seal' => $bill->show_seal ?? true,
     ];
 
+    ini_set('memory_limit', '512M');
     $html = view('pdf.bill', $pdfData)->render();
     $mpdf = new \Mpdf\Mpdf([
         'mode' => 'utf-8',
@@ -689,9 +649,11 @@ public function download($id)
         ? Carbon::parse($bill->bill_date)->format('d-m-Y')
         : now()->format('d-m-Y');
     $fileName = $clientSlug . '-' . $billDate . '.pdf';
+    $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
 
-    return response($mpdf->Output($fileName, 'I'), 200, [
+    return response($pdfContent, 200, [
         'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="' . $fileName . '"',
     ]);
 }
     public function updateStatus(Bill $bill, Request $request)
@@ -787,7 +749,7 @@ public function download($id)
 
 public function reportPdf(Request $request)
 {
-    $query = Bill::with(['client', 'vendor', 'project', 'purchase', 'items', 'sale.salesPerson']);
+    $query = Bill::with(['client', 'vendor', 'project', 'purchase', 'items']);
 
     if ($request->filled('type')) {
         $query->where('type', $request->type);
@@ -803,6 +765,7 @@ public function reportPdf(Request $request)
 
     $bills = $query->latest()->get();
 
+    ini_set('memory_limit', '512M');
     $html = view('pdf.bills-report', compact('bills', 'request'))->render();
     $mpdf = new \Mpdf\Mpdf([
         'mode' => 'utf-8',
@@ -810,8 +773,10 @@ public function reportPdf(Request $request)
         'default_font' => 'Helvetica',
     ]);
     $mpdf->WriteHTML($html);
-    return response($mpdf->Output('bills-report.pdf', 'I'), 200, [
+    $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
+    return response($pdfContent, 200, [
         'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="bills-report.pdf"',
     ]);
 }
 
