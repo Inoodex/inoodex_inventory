@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use App\Models\User;
+use Spatie\Permission\PermissionRegistrar;
 
 class PermissionSeeder extends Seeder
 {
@@ -14,70 +15,82 @@ class PermissionSeeder extends Seeder
      */
     public function run(): void
     {
-        // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        // 1. Reset cached roles and permissions
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create ALL permissions that your menu checks for
+        // 2. Comprehensive application permissions list
         $permissions = [
-            ['name' => 'Administration', 'guard_name' => 'web'],
-            ['name' => 'Booking', 'guard_name' => 'web'],
-            ['name' => 'Service Management', 'guard_name' => 'web'],
-            ['name' => 'Sales Management', 'guard_name' => 'web'],
-            ['name' => 'Settings', 'guard_name' => 'web'],
-
-            // ADD THESE NEW PERMISSIONS:
-            ['name' => 'Product Management', 'guard_name' => 'web'],
-            ['name' => 'Customer Management', 'guard_name' => 'web'],
-            ['name' => 'Vendor Management', 'guard_name' => 'web'],
-            ['name' => 'Purchase Management', 'guard_name' => 'web'],
-            ['name' => 'Inventory Management', 'guard_name' => 'web'],
-            ['name' => 'Expense Management', 'guard_name' => 'web'],
-            ['name' => 'Report Management', 'guard_name' => 'web'],
+            'Administration',
+            'Settings',
+            'Category Management',
+            'Product Management',
+            'Customer Management',
+            'Vendor Management',
+            'Purchase Management',
+            'Inventory Management',
+            'Warranty Management',
+            'Service Management',
+            'Sales Management',
+            'Accounts Management',
+            'Expense Management',
+            'Payment Management',
+            'Project Management',
+            'Client Management',
+            'Cost Management',
+            'Company Management',
+            'Report Management',
+            'Booking',
         ];
 
-        foreach ($permissions as $permission) {
+        foreach ($permissions as $permissionName) {
             Permission::firstOrCreate([
-                'name' => $permission['name'],
-                'guard_name' => $permission['guard_name']
+                'name' => $permissionName,
+                'guard_name' => 'web',
             ]);
         }
 
-        // Create Super Admin role
+        // 3. Define Roles
         $superAdminRole = Role::firstOrCreate([
             'name' => 'Super Admin',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ]);
 
-        // Assign ALL permissions to Super Admin
-        $superAdminRole->syncPermissions(Permission::all());
+        $adminRole = Role::firstOrCreate([
+            'name' => 'Admin',
+            'guard_name' => 'web',
+        ]);
 
-        // Assign Super Admin role to your user
-        // $user = User::where('email', 'superadmin@example.com')->first();
-        // if ($user) {
-        //     $user->assignRole('Super Admin');
-        // }
+        $employeeRole = Role::firstOrCreate([
+            'name' => 'Employee',
+            'guard_name' => 'web',
+        ]);
 
-        // // Optional: Create other roles with specific permissions
-        // $adminRole = Role::firstOrCreate([
-        //     'name' => 'Admin',
-        //     'guard_name' => 'web'
-        // ]);
+        // 4. Assign ALL permissions to Super Admin
+        $allPermissions = Permission::all();
+        $superAdminRole->syncPermissions($allPermissions);
 
-        // $adminRole->syncPermissions([
-        //     'Product Management',
-        //     'Sales Management',
-        //     'Customer Management',
-        //     'Vendor Management',
-        //     'Purchase Management',
-        //     'Inventory Management',
-        //     'Expense Management',
-        //     'Report Management'
-        // ]);
+        // 5. Assign operational permissions to Admin
+        $adminPermissions = Permission::whereNotIn('name', [
+            'Administration',
+            'Settings',
+        ])->get();
+        $adminRole->syncPermissions($adminPermissions);
 
+        // 6. Assign Super Admin role to default admin user(s)
+        $defaultUsers = User::whereIn('email', ['hello@inoodex.com', 'admin@example.com'])->get();
+        foreach ($defaultUsers as $user) {
+            if (!$user->hasRole('Super Admin')) {
+                $user->assignRole($superAdminRole);
+            }
+        }
+
+        // Fallback: Ensure the first user in database has Super Admin role
         $firstUser = User::first();
-
         if ($firstUser && !$firstUser->hasRole('Super Admin')) {
             $firstUser->assignRole($superAdminRole);
         }
+
+        // 7. Clear cache again after seeding
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }

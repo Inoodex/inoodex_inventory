@@ -34,7 +34,7 @@ class BrandController extends Controller
      */
     public function create()
     {
-        $brands = Brand::latest()->paginate(10);
+        $brands = Brand::latest()->get();
         return view('frontend.pages.brands.create', compact('brands'));
     }
 

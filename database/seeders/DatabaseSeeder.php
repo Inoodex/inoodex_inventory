@@ -18,9 +18,10 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(UserSeeder::class);
         $this->call(PermissionSeeder::class);
-        // $this->call(RoleSeeder::class);
-        // $this->call(SyncPermissionSeeder::class);
-        // $this->call(AssignroleSeeder::class);
-        // LeadGenaration::factory(100000)->create();
+        $this->call(CategorySeeder::class);
+        $this->call(BrandSeeder::class);
+        $this->call(VendorSeeder::class);
+        $this->call(CustomerSeeder::class);
+        $this->call(ProductSeeder::class);
     }
 }

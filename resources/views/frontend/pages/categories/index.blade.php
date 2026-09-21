@@ -207,7 +207,7 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-3 col-lg-4 text-md-end text-muted small">
-                    Showing <span id="visibleCategoryCount" class="fw-bold text-dark">{{ $categories->count() }}</span> of {{ $categories->count() }} records
+                    Showing <span id="visibleCategoryCount" class="fw-bold text-dark">{{ $categories->count() }}</span> of {{ method_exists($categories, 'total') ? $categories->total() : $categories->count() }} records
                 </div>
             </div>
         </div>
@@ -370,6 +370,18 @@
                 </table>
             </div>
         </div>
+        @if($categories instanceof \Illuminate\Pagination\LengthAwarePaginator && $categories->hasPages())
+            <div class="card-footer bg-white border-top border-light py-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="text-muted small">
+                        Showing {{ $categories->firstItem() }} to {{ $categories->lastItem() }} of {{ $categories->total() }} entries
+                    </div>
+                    <div>
+                        {{ $categories->links() }}
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 

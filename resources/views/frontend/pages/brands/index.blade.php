@@ -176,7 +176,7 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-3 col-lg-4 text-md-end text-muted small">
-                    Showing <span id="visibleBrandCount" class="fw-bold text-dark">{{ $brands->count() }}</span> of {{ $brands->count() }} records
+                    Showing <span id="visibleBrandCount" class="fw-bold text-dark">{{ $brands->count() }}</span> of {{ method_exists($brands, 'total') ? $brands->total() : $brands->count() }} records
                 </div>
             </div>
         </div>
@@ -300,6 +300,18 @@
                 </table>
             </div>
         </div>
+        @if($brands instanceof \Illuminate\Pagination\LengthAwarePaginator && $brands->hasPages())
+            <div class="card-footer bg-white border-top border-light py-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="text-muted small">
+                        Showing {{ $brands->firstItem() }} to {{ $brands->lastItem() }} of {{ $brands->total() }} entries
+                    </div>
+                    <div>
+                        {{ $brands->links() }}
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 
