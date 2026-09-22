@@ -3,14 +3,10 @@
 use App\Models\Booking;
 use App\Models\Notification;
 use App\Models\User;
-use App\Models\Admin\Currency;
-use App\Models\Admin\ProductImage;
-use App\Models\Admin\ProductOptionTopping;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 
 // Load modular helper sub-files
-require_once __DIR__ . '/CartHelper.php';
 require_once __DIR__ . '/LibraryHelper.php';
 require_once __DIR__ . '/FormatHelper.php';
 
@@ -18,13 +14,6 @@ if (!function_exists('pendingBooking')) {
     function pendingBooking()
     {
         return Booking::count();
-    }
-}
-
-if (!function_exists('getProductImage')) {
-    function getProductImage($id)
-    {
-        return ProductImage::where('product_id', $id)->get();
     }
 }
 

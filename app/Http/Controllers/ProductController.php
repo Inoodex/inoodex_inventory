@@ -4,30 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
-use Carbon\Carbon;
+use App\Models\Brand;
+use App\Models\Category;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Service;
-
-use App\Models\Admin\Size;
-use App\Models\Admin\Brand;
-use Illuminate\Support\Str;
-use App\Models\Admin\Toping;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use App\Models\Product;
-use App\Models\Admin\Category;
-use App\Models\Admin\ProductTag;
-use App\Models\Admin\OptionTitle;
-use App\Models\Admin\ProductSize;
-use App\Models\Admin\SubCategory;
-use App\Models\SizeVsTopingPrice;
-use App\Models\Admin\ProductImage;
 use Illuminate\Support\Facades\DB;
-use App\Models\Admin\ProductOption;
-use App\Models\Admin\ProductToping;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\File;
-use App\Models\Admin\ProductOptionTopping;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {

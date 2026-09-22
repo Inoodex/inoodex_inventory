@@ -13,7 +13,8 @@ use App\Http\Controllers\{
     CompanyDetailController, PaymentController, ReturnController, WarrantyController,
     ChartOfAccountController, JournalEntryController, LedgerController,
     TrialBalanceController, FinancialStatementController,
-    FiscalYearController, VendorDueController, SettingController
+    FiscalYearController, VendorDueController, SettingController,
+    ContraEntryController, ReconciliationController
 };
 
 use Illuminate\Support\Facades\{Auth, Route};
@@ -293,5 +294,12 @@ Route::middleware(['auth', 'permission:Accounts Management'])->group(function ()
         Route::post('fiscal-years', [FiscalYearController::class, 'store'])->name('fiscal-years.store');
         Route::post('fiscal-years/{fiscalYear}/set-active', [FiscalYearController::class, 'setActive'])->name('fiscal-years.set-active');
         Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeYear'])->name('fiscal-years.close');
+
+        // Contra Entries (Transfers between Cash & Bank)
+        Route::resource('contra-entries', ContraEntryController::class)->only(['index', 'create', 'store', 'show']);
+
+        // Bank Reconciliation
+        Route::get('reconciliation', [ReconciliationController::class, 'index'])->name('reconciliation.index');
+        Route::post('reconciliation', [ReconciliationController::class, 'store'])->name('reconciliation.store');
     });
 });

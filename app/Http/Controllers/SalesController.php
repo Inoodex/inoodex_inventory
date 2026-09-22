@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, Log, Mail};
 use App\Models\{Challan, ChallanItem, CompanyDetail, Customer, Inventory, Payment, Product, Project, Sale, SalesItem, Service, User};
-use App\Mail\CreateSalesMail;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSaleRequest;
 use App\Http\Requests\UpdateSaleRequest;

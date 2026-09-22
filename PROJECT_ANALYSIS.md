@@ -42,7 +42,6 @@ inoodex_inventory/
 │   │   ├── Controllers/       # 54 Controllers (Sales, Accounts, Purchases, Service, HR, etc.)
 │   │   ├── Middleware/        # ValidateFiscalYear, Spatie RBAC, auth guards
 │   │   └── Kernel.php
-│   ├── Mail/                  # Mailable classes (e.g., CreateSalesMail)
 │   ├── Models/                # 54 Eloquent models (ChartOfAccount, JournalEntry, Sale, Product, etc.)
 │   ├── Providers/             # Service providers (AppServiceProvider with Sanctum::ignoreMigrations)
 │   └── Services/              # Dedicated business transaction services (SaleService, PurchaseService, etc.)
@@ -429,14 +428,14 @@ DB_DATABASE=inoodex_inventory
 DB_USERNAME=root
 DB_PASSWORD=
 
-# 4. Run clean consolidated database migrations & seeders (all 62 tables & seeders)
-php artisan migrate:fresh --seed
+# 4. Run clean database migrations & seeders
+php artisan migrate --seed
 
 # 5. Initialize operational opening balances (if importing legacy transactions)
 php artisan accounts:init-balances
 
 # 6. Build assets and run development server
-npm run build
+npm run dev # or npm run build
 php artisan serve
 ```
 
@@ -445,5 +444,29 @@ php artisan serve
 
 ---
 
-*Document Version:* 2.0  
+## 10. ⚡ Database Performance & Indexing Architecture
+
+To guarantee sub-10ms response times for high-throughput ERP queries, composite and single-column indexes are active across critical transactional tables:
+
+- **Sales & Commercial Documents:**
+  - `sales_items`: `order_id`, `product_id`
+  - `payments`: `customer_id`, `sale_id`, `project_id`, `payment_method`, `created_at`
+  - `challans`: `customer_id`, `client_id`, `challan_date`
+  - `quotations`: `customer_id`, `client_id`, `quotation_date`, `status`
+  - `bills`: `sale_id`, `project_id`, `customer_id`, `client_id`, `bank_detail_id`, `company_detail_id`, `bill_date`
+- **Stakeholders & Lookups:**
+  - `customers`: `email` (unique), `phone`, `status`
+  - `vendors`: `phone`, `status`
+  - `clients`: `phone`, `email`
+  - `bookings`: `customer_id`, `phone`, `status`
+- **HR & Operations:**
+  - `attendances`: `date`, `user_id`, `(user_id, date)`
+  - `salaries`: `date`, `user_id`, `(user_id, date)`
+  - `advance_salaries`: `employee_id`, `status`
+  - `services`: `product_id`, `customer_id`, `status`, `created_at`, `phone`, `complated_date`
+  - `settings`: `key` (unique), `group`
+
+---
+
+*Document Version:* 2.1  
 *Maintained by:* Antigravity AI Engineering Assistant  

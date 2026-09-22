@@ -156,7 +156,8 @@
       <div class="container">
         <div id="copy-right" class="copy-right col-sm-12">
           <div class="copyright">
-            Copyright © 2024 Bedouin.com </div>
+            {{ getSetting('footer_text', 'Copyright © ' . date('Y') . ' ' . getSetting('site_name', 'Inoodex Inventory') . '. All rights reserved.') }}
+          </div>
         </div>
         <div class="payment col-sm-12">
         </div>

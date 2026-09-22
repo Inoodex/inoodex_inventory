@@ -131,46 +131,12 @@
             } else {return '';}
         }
 
-        function removeCartItem(key, fun=null){
-            fetch('{{route('remove_cart_item')}}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{csrf_token()}}' },
-                body: JSON.stringify({ key })
-            }).then(res => res.json())
-            .then(data => {
-                document.getElementById("mini_cart_value").innerHTML = `${data.currectPrice} ৳`;
-                document.getElementById("mini_cart_view").innerHTML = data.cart;
-                if (fun) fun();
-            });
-        }
-
-        function updateQty(){
-                
-        }
-
-        function freeSearchProduct(key){
-            key = key.trim();
-            if(key==null || key==""){
-                document.getElementById("freeSearchResultHolder").style.display = "none";
-                document.getElementById("freeSearchResultHolderMobole").style.display = "none";
-                return;
-            }
-            fetch('{{route('free_search_product')}}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{csrf_token()}}' },
-                body: JSON.stringify({ key })
-            }).then(res => res.json())
-            .then(data => {
-                if(data.totalItem==0){
-                    console.log("000000000000");
-                    document.getElementById("freeSearchResultHolder").style.display = "none";
-                    document.getElementById("freeSearchResultHolderMobole").style.display = "none";
-                }else{
-                    document.getElementById("freeSearchResultHolder").style.display = "";
-                    document.getElementById("freeSearchResultHolderMobole").style.display = "";
+        // Global jQuery AJAX CSRF Setup
+        if (typeof jQuery !== 'undefined') {
+            jQuery.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                 }
-                document.getElementById("freeSearchResultHolder").innerHTML = data.html;
-                document.getElementById("freeSearchResultHolderMobole").innerHTML = data.html;
             });
         }
     </script>

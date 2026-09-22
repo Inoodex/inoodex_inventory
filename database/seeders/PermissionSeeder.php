@@ -39,6 +39,7 @@ class PermissionSeeder extends Seeder
             'Cost Management',
             'Company Management',
             'Report Management',
+            'Employee Management',
             'Booking',
         ];
 

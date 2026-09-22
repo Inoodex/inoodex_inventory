@@ -9,10 +9,11 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\Product;
-use App\Models\Service;
-use App\Models\Admin\Category;
+use App\Models\Category;
 use App\Models\Customer;
+use App\Models\Service;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 
 class ServiceController extends Controller
@@ -185,68 +186,73 @@ class ServiceController extends Controller
 
         $product = Product::findOrFail($request->product_id);
 
-        if ($request->client_type == 'new') {
-            $customerByPhone = Customer::where('phone', $request->phone)->first();
-            $customerByEmail = Customer::where('email', $request->email)->first();
-            if($request->email == "") $customerByEmail = null;
+        try {
+            DB::transaction(function () use ($request, $product, &$customer) {
+                if ($request->client_type == 'new') {
+                    $customerByPhone = Customer::where('phone', $request->phone)->first();
+                    $customerByEmail = Customer::where('email', $request->email)->first();
+                    if($request->email == "") $customerByEmail = null;
 
-            if((!$customerByPhone && $customerByEmail)){
-                $customer = $customerByEmail;
-            }elseif(($customerByPhone && !$customerByEmail)){
-                $customer = $customerByPhone;
-            }elseif($customerByPhone && $customerByEmail && $customerByPhone->id == $customerByEmail->id){
-                $customer = $customerByPhone;
-            }elseif($customerByPhone && $customerByEmail && $customerByPhone->id != $customerByEmail->id){
-                return redirect()->back()->with(['error' => 'The email is added for another customer.'])->withInput();
-            } else {
-                $customer = new Customer;
-            }
+                    if((!$customerByPhone && $customerByEmail)){
+                        $customer = $customerByEmail;
+                    }elseif(($customerByPhone && !$customerByEmail)){
+                        $customer = $customerByPhone;
+                    }elseif($customerByPhone && $customerByEmail && $customerByPhone->id == $customerByEmail->id){
+                        $customer = $customerByPhone;
+                    }elseif($customerByPhone && $customerByEmail && $customerByPhone->id != $customerByEmail->id){
+                        throw new \Exception('The email is already registered to another customer.');
+                    } else {
+                        $customer = new Customer;
+                    }
 
-            $customer->name = $request->name;
-            if($request->email != "" )$customer->email = $request->email;
-            $customer->country_code = $request->country_code;
-            $customer->phone = $request->phone;
-            $customer->address = $request->address;
-            $customer->save();
+                    $customer->name = $request->name;
+                    if($request->email != "" )$customer->email = $request->email;
+                    $customer->country_code = $request->country_code;
+                    $customer->phone = $request->phone;
+                    $customer->address = $request->address;
+                    $customer->save();
+                }
+
+                $countryCode = $customer->country_code ?: $request->country_code;
+
+                $service = new Service;
+                $service->customer_id = $customer->id;
+                $service->name = $customer->name;
+                $service->country_code = $countryCode;
+                $service->phone = $customer->phone;
+                $service->email = $customer->email;
+                $service->address = $customer->address;
+                $service->product_id = $product->id;
+                $service->product_name = $product->name;
+                $service->product_number = $request->product_number;
+                $service->total = $request->total ?? 0;
+                $service->discount = $request->discount ?? 0;
+                $service->bill = $request->bill ?? 0;
+                $service->paid_amount = $request->paid_amount ?? 0;
+                $service->due_amount = max(0, $request->bill - $request->paid_amount);
+                $service->remarks = $request->remarks;
+                $service->details = $request->details;
+                $service->warranty_duration = $request->warranty_duration;
+                $service->repaired_by = $request->repaired_by;
+                $service->status = '0';
+                $service->save();
+
+                if($request->paid_amount > 0){
+                    $payment = new Payment;
+                    $payment->payment_for = '1';
+                    $payment->customer_id = $customer->id;
+                    $payment->sale_id = $service->id;
+                    $payment->payment_method = $request->payment_method_id ?: 'cash';
+                    $payment->amount = $request->paid_amount;
+                    $payment->remarks = $request->remarks;
+                    $payment->save();
+                }
+            });
+
+            return redirect()->route('service.index')->with(['success' => 'Service created successfully.']);
+        } catch (\Exception $e) {
+            return redirect()->back()->with(['error' => $e->getMessage()])->withInput();
         }
-
-        $countryCode = $customer->country_code ?: $request->country_code;
-
-        $service = new Service;
-        $service->customer_id = $customer->id;
-        $service->name = $customer->name;
-        $service->country_code = $countryCode;
-        $service->phone = $customer->phone;
-        $service->email = $customer->email;
-        $service->address = $customer->address;
-        $service->product_id = $product->id;
-        $service->product_name = $product->name;
-        $service->product_number = $request->product_number;
-        $service->total = $request->total??0;
-        $service->discount = $request->discount??0;
-        $service->bill = $request->bill??0;
-        $service->paid_amount = $request->paid_amount??0;
-        $service->due_amount = max(0,$request->bill-$request->paid_amount);
-        $service->remarks = $request->remarks;
-        $service->details = $request->details;
-        $service->warranty_duration = $request->warranty_duration;
-        $service->repaired_by = $request->repaired_by;
-        $service->status = '0';
-        $service->save();
-
-        if($request->paid_amount > 0){
-            $payment = new Payment;
-            $payment->payment_for = '1';
-            $payment->customer_id = $customer->id;
-            $payment->sale_id = $service->id;
-            $payment->payment_method = $request->payment_method_id ?: '1';
-            $payment->amount = $request->paid_amount;
-            $payment->remarks = $request->remarks;
-            $payment->save();
-        }
-
-        return redirect()->route('service.index')->with(['success' => 'Service created successfully.']);
-
     }
 
     /**
@@ -308,50 +314,56 @@ class ServiceController extends Controller
 
         $product = Product::findOrFail($request->product_id);
 
-        $customerByPhone = Customer::where('phone', $request->phone)->first();
-        $customerByEmail = Customer::where('email', $request->email)->first();
-        if($request->email == "") $customerByEmail = null;
-        $customer =  new Customer;
+        try {
+            DB::transaction(function () use ($request, $product, $service) {
+                $customerByPhone = Customer::where('phone', $request->phone)->first();
+                $customerByEmail = Customer::where('email', $request->email)->first();
+                if($request->email == "") $customerByEmail = null;
+                $customer = new Customer;
 
-        if((!$customerByPhone && $customerByEmail)){
-            $customer = $customerByEmail;
-        }elseif(($customerByPhone && !$customerByEmail)){
-            $customer = $customerByPhone;
-        }elseif($customerByPhone && $customerByEmail && $customerByPhone->id == $customerByEmail->id){
-            $customer = $customerByPhone;
-        }elseif($customerByPhone && $customerByEmail && $customerByPhone->id != $customerByEmail->id){
-            return redirect()->back()->with(['error' => 'The email is added for another customer.'])->withInput();
+                if((!$customerByPhone && $customerByEmail)){
+                    $customer = $customerByEmail;
+                }elseif(($customerByPhone && !$customerByEmail)){
+                    $customer = $customerByPhone;
+                }elseif($customerByPhone && $customerByEmail && $customerByPhone->id == $customerByEmail->id){
+                    $customer = $customerByPhone;
+                }elseif($customerByPhone && $customerByEmail && $customerByPhone->id != $customerByEmail->id){
+                    throw new \Exception('The email is already registered to another customer.');
+                }
+
+                $customer->name = $request->name;
+                if($request->email != "" )$customer->email = $request->email;
+                $customer->country_code = $request->country_code;
+                $customer->phone = $request->phone;
+                $customer->address = $request->address;
+                $customer->save();
+
+                $countryCode = $customer->country_code ?: $request->country_code;
+
+                $service->customer_id = $customer->id;
+                $service->name = $customer->name;
+                $service->country_code = $countryCode;
+                $service->phone = $customer->phone;
+                $service->email = $customer->email;
+                $service->address = $customer->address;
+                $service->product_id = $product->id;
+                $service->product_name = $product->name;
+                $service->product_number = $request->product_number;
+                $service->total = $request->total ?? 0;
+                $service->discount = $request->discount ?? 0;
+                $service->bill = $request->bill ?? 0;
+                $service->due_amount = max(0, $request->bill - $service->paid_amount);
+                $service->remarks = $request->remarks;
+                $service->details = $request->details;
+                $service->warranty_duration = $request->warranty_duration;
+                $service->repaired_by = $request->repaired_by;
+                $service->save();
+            });
+
+            return redirect()->back()->with(['success' => 'Service updated successfully.']);
+        } catch (\Exception $e) {
+            return redirect()->back()->with(['error' => $e->getMessage()])->withInput();
         }
-
-        $customer->name = $request->name;
-        if($request->email != "" )$customer->email = $request->email;
-        $customer->country_code = $request->country_code;
-        $customer->phone = $request->phone;
-        $customer->address = $request->address;
-        $customer->save();
-
-        $countryCode = $customer->country_code ?: $request->country_code;
-
-        $service->customer_id = $customer->id;
-        $service->name = $customer->name;
-        $service->country_code = $countryCode;
-        $service->phone = $customer->phone;
-        $service->email = $customer->email;
-        $service->address = $customer->address;
-        $service->product_id = $product->id;
-        $service->product_name = $product->name;
-        $service->product_number = $request->product_number;
-        $service->total = $request->total??0;
-        $service->discount = $request->discount??0;
-        $service->bill = $request->bill??0;
-        $service->due_amount = max(0,$request->bill-$service->paid_amount);
-        $service->remarks = $request->remarks;
-        $service->details = $request->details;
-        $service->warranty_duration = $request->warranty_duration;
-        $service->repaired_by = $request->repaired_by;
-        $service->update();
-
-        return redirect()->back()->with(['success' => 'Service updated successfully.']);
     }
 
     /**
@@ -514,9 +526,7 @@ class ServiceController extends Controller
 
     //     $serviceMans = lib_serviceMan();
 
-    //     if($service->email){
-    //         Mail::to($service->email)->send(new PlaceOrderMail($service, $serviceMans));
-    //     }
+
     //     if($service->phone && env('TWILIO_SID') && env('TWILIO_AUTH_TOKEN')){
     //         $twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
 
