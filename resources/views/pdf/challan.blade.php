@@ -112,17 +112,13 @@
     <!-- Top Reference & Header -->
     <table class="header-table" cellpadding="0" cellspacing="0">
         <tr>
-            <td style="width:40%; vertical-align: top;">
+            <td style="width:50%; vertical-align: top;">
                 <div class="ref-box">
                     <strong>Ref:</strong> {{ $challan->reference_number }}<br>
                     <strong>Date:</strong> {{ $challan->challan_date ? \Carbon\Carbon::parse($challan->challan_date)->format('d M Y') : date('d M Y') }}
                 </div>
             </td>
-            <td style="width:20%; text-align: center; vertical-align: top;">
-                <barcode code="{{ route('document.verify', ['type' => 'challan', 'code' => $challan->reference_number ?? $challan->id]) }}" type="QR" class="barcode" size="0.75" error="M" disableborder="1" />
-                <div style="font-size: 7.5px; color: #64748b; margin-top: 2px;">Verify Challan</div>
-            </td>
-            <td style="width:40%;" class="report-title">
+            <td style="width:50%;" class="report-title">
                 <h1>DELIVERY CHALLAN</h1>
                 @if($challan->work_order_number)
                     <p>Work Order: {{ $challan->work_order_number }}</p>

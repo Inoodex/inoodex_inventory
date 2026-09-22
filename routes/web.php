@@ -26,9 +26,6 @@ Auth::routes(['register' => false, 'reset' => false, 'verify' => false]);
 Route::redirect('/admin/dashboard', '/');
 Route::redirect('/home', '/');
 
-// Public Document Verification (QR Code scanning on Invoices, Challans, Bills, Warranties)
-Route::get('/verify/{type}/{code}', [FrontendController::class, 'verifyDocument'])->name('document.verify');
-
 // =========================================================================
 // 1. DASHBOARD & EMPLOYEE PORTAL (Accessible by all authenticated users)
 // =========================================================================

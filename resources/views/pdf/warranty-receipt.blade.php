@@ -79,18 +79,10 @@
     </style>
 </head>
 <body>
-    <table style="width: 100%; margin-bottom: 15px; border-bottom: 2px solid #7638ff; padding-bottom: 10px;">
-        <tr>
-            <td style="width: 80%; vertical-align: middle;">
-                <h2 style="margin: 0 0 5px 0; color: #7638ff; font-size: 20px;">{{ getSetting('site_name', 'Inoodex Inventory') }}</h2>
-                <p style="margin: 0; color: #666; font-size: 11px;">Official Warranty Claim Acknowledgement Receipt</p>
-            </td>
-            <td style="width: 20%; text-align: right; vertical-align: middle;">
-                <barcode code="{{ route('document.verify', ['type' => 'warranty', 'code' => $claim->claim_no ?? $claim->id]) }}" type="QR" class="barcode" size="0.75" error="M" disableborder="1" />
-                <div style="font-size: 7.5px; color: #7638ff; margin-top: 2px; font-weight: bold;">Verify Claim</div>
-            </td>
-        </tr>
-    </table>
+    <div class="header">
+        <h2>Inoodex Inventory</h2>
+        <p>Official Warranty Claim Acknowledgement Receipt</p>
+    </div>
 
     <div class="receipt-title">
         WARRANTY CLAIM RECEIPT #{{ $claim->claim_no }}
