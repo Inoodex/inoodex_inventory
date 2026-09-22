@@ -160,6 +160,11 @@
                                         placeholder="e.g. 365" value="{{ old('warranty') }}">
                                 </div>
                                 <div class="col-md-6">
+                                    <label for="min_stock_alert" class="form-label fw-semibold small text-secondary">Low Stock Alert Level</label>
+                                    <input type="number" name="min_stock_alert" id="min_stock_alert" class="form-control"
+                                        placeholder="Alert threshold (default 5)" value="{{ old('min_stock_alert', 5) }}" min="0">
+                                </div>
+                                <div class="col-md-6">
                                     <label for="status" class="form-label fw-semibold small text-secondary">Status <span
                                             class="text-danger">*</span></label>
                                     <select class="form-select" name="status" required>
@@ -629,6 +634,11 @@
                                                                 (Days)</label>
                                                             <input type="text" name="warranty" class="form-control"
                                                                 value="{{ old('warranty', $product->warranty) }}">
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-semibold small text-secondary">Low Stock Alert Level</label>
+                                                            <input type="number" name="min_stock_alert" class="form-control"
+                                                                value="{{ old('min_stock_alert', $product->min_stock_alert ?? 5) }}" min="0">
                                                         </div>
                                                         <div class="col-md-6">
                                                             <label class="form-label fw-semibold small text-secondary">Status

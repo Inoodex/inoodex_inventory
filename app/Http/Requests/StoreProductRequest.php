@@ -22,6 +22,7 @@ class StoreProductRequest extends FormRequest
             'warranty'      => 'nullable|integer|min:0',
             'status'        => 'required|boolean',
             'is_serialized' => 'nullable|boolean',
+            'min_stock_alert' => 'nullable|integer|min:0',
             'photos'        => 'nullable|array',
             'photos.*'      => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ];

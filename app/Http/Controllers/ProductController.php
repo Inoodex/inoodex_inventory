@@ -93,15 +93,16 @@ class ProductController extends Controller
         $barcode = !empty($validated['barcode']) ? trim($validated['barcode']) : Product::generateBarcode();
 
         $product = Product::create([
-            'brand_id'      => $validated['brand_id'],
-            'category_id'   => $validated['category_id'] ?? null,
-            'name'          => $validated['name'],
-            'model'         => $validated['model_name'],
-            'barcode'       => $barcode,
-            'warranty'      => $validated['warranty'] ?? 0,
-            'status'        => $validated['status'],
-            'is_serialized' => $request->has('is_serialized') ? 1 : 0,
-            'photos'        => !empty($photoPaths) ? $photoPaths : null,
+            'brand_id'        => $validated['brand_id'],
+            'category_id'     => $validated['category_id'] ?? null,
+            'name'            => $validated['name'],
+            'model'           => $validated['model_name'],
+            'barcode'         => $barcode,
+            'warranty'        => $validated['warranty'] ?? 0,
+            'status'          => $validated['status'],
+            'is_serialized'   => $request->has('is_serialized') ? 1 : 0,
+            'min_stock_alert' => $validated['min_stock_alert'] ?? 5,
+            'photos'          => !empty($photoPaths) ? $photoPaths : null,
         ]);
 
         return redirect()->route('products.index')->with('success', 'Product created successfully with Barcode: ' . $product->barcode);
@@ -173,15 +174,16 @@ class ProductController extends Controller
         $barcode = !empty($validated['barcode']) ? trim($validated['barcode']) : ($product->barcode ?? Product::generateBarcode());
 
         $product->update([
-            'brand_id'      => $validated['brand_id'],
-            'category_id'   => $validated['category_id'] ?? $product->category_id,
-            'name'          => $validated['name'],
-            'model'         => $validated['model_name'],
-            'barcode'       => $barcode,
-            'warranty'      => $validated['warranty'] ?? 0,
-            'status'        => $validated['status'],
-            'is_serialized' => $request->has('is_serialized') ? 1 : 0,
-            'photos'        => !empty($allPhotos) ? $allPhotos : null,
+            'brand_id'        => $validated['brand_id'],
+            'category_id'     => $validated['category_id'] ?? $product->category_id,
+            'name'            => $validated['name'],
+            'model'           => $validated['model_name'],
+            'barcode'         => $barcode,
+            'warranty'        => $validated['warranty'] ?? 0,
+            'status'          => $validated['status'],
+            'is_serialized'   => $request->has('is_serialized') ? 1 : 0,
+            'min_stock_alert' => $validated['min_stock_alert'] ?? 5,
+            'photos'          => !empty($allPhotos) ? $allPhotos : null,
         ]);
 
         return redirect()->route('products.index')->with('success', 'Product updated successfully.');

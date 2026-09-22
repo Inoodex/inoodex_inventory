@@ -40,7 +40,11 @@
     <!-- Header Title & Order Meta -->
     <table style="width: 100%; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
         <tr>
-            <td align="right">
+            <td align="left" style="vertical-align: middle; width: 35%;">
+                <barcode code="{{ route('document.verify', ['type' => 'invoice', 'code' => $sales->order_no ?? $sales->id]) }}" type="QR" class="barcode" size="0.8" error="M" disableborder="1" />
+                <div style="font-size: 8px; color: #64748b; margin-top: 3px; font-weight: 600;">Scan to Verify Document</div>
+            </td>
+            <td align="right" style="vertical-align: middle; width: 65%;">
                 <h1 style="font-size: 26px; color: #0f172a; margin-bottom: 4px;">INVOICE</h1>
                 <div style="font-size: 15px; font-weight: 700; color: #4f46e5;">Invoice No: #{{ $sales->order_no }}</div>
                 <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Invoice Date: {{ $sales->created_at ? $sales->created_at->format('d M Y') : date('d M Y') }}</div>

@@ -6,8 +6,13 @@ use App\Models\DailyExpense;
 use App\Models\Employee;
 use App\Models\ExpenseCategory;
 use App\Models\User;
+use App\Models\ChartOfAccount;
+use App\Models\JournalEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class ExpenseController extends Controller
 {
@@ -108,66 +113,36 @@ class ExpenseController extends Controller
 
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created expense and auto-post to General Ledger.
      */
-    // public function store(Request $request)
-    // {
-    //     $attributes = $request->all();
+    public function store(Request $request)
+    {
+        $request->validate([
+            'employee_id' => 'nullable|exists:employees,id',
+            'date' => 'required|date',
+            'amount' => 'required|numeric|min:0.01',
+            'spend_method' => 'required|in:cash,card,bank_transfer',
+            'remarks' => 'nullable|string',
+            'expense_category_id' => 'required|exists:expense_categories,id',
+        ]);
 
-    //     $rules = [
-    //         'date' => 'required|date',
-    //         'expense_category_id' => 'required|exists:expense_categories,id',
-    //         'amount' => 'required|numeric|min:0.01',
-    //         'spend_method' => 'required|in:cash,card,bank_transfer',
-    //         'remarks' => 'nullable|string|max:1000',
-    //     ];
+        DB::transaction(function () use ($request) {
+            $expense = DailyExpense::create([
+                'user_id' => auth()->id(),
+                'employee_id' => $request->employee_id,
+                'date' => $request->date,
+                'expense_category_id' => $request->expense_category_id,
+                'amount' => $request->amount,
+                'spend_method' => $request->spend_method,
+                'remarks' => $request->remarks,
+            ]);
 
-    //     $validation = Validator::make($attributes, $rules);
+            // Auto-post double-entry journal voucher to General Ledger
+            $this->postExpenseJournal($expense->fresh(['expenseCategory', 'employee']));
+        });
 
-    //     if ($validation->fails()) {
-    //         return redirect()->back()
-    //             ->with(['error' => 'Validation failed. Please check your inputs.'])
-    //             ->withErrors($validation)
-    //             ->withInput();
-    //     }
-
-    //     $expense = new DailyExpense();
-    //     $expense->date = $request->date;
-    //     $expense->expense_category_id = $request->expense_category_id;
-    //     $expense->amount = $request->amount;
-    //     $expense->spend_method = $request->spend_method;
-    //     $expense->remarks = $request->remarks;
-    //     $expense->save();
-
-    //     // return redirect()->back()->with(['success' => 'Expense created successfully.']);
-    //     return redirect()->route('dailyExpenses.index')->with('success', 'Created successfully.');
-
-    // }
-
-  public function store(Request $request)
-{
-    $request->validate([
-        'employee_id' => 'required|exists:employees,id',
-        'date' => 'required|date',
-        'amount' => 'required|numeric',
-        'spend_method' => 'required|in:cash,card,bank_transfer',
-        'remarks' => 'nullable|string',
-        'expense_category_id' => 'required|exists:expense_categories,id',
-    ]);
-
-    DailyExpense::create([
-        'user_id' => auth()->id(),
-        'employee_id' => $request->employee_id,
-        'date' => $request->date,
-        'expense_category_id' => $request->expense_category_id,
-        'amount' => $request->amount,
-        'spend_method' => $request->spend_method,
-        'remarks' => $request->remarks,
-    ]);
-
-    // return redirect()->back()->with('success', 'Advance salary request submitted.');
-    return redirect()->route('dailyExpenses.index')->with('success', 'Created successfully.');
-}
+        return redirect()->route('dailyExpenses.index')->with('success', 'Daily Expense recorded and posted to General Ledger.');
+    }
 
 
 
@@ -198,52 +173,142 @@ class ExpenseController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified expense and adjust ledger entries.
      */
     public function update(Request $request, $id)
     {
-        $attributes = $request->all();
-        $rules = [
+        $request->validate([
             'date'                => 'required|date',
             'expense_category_id' => 'required|exists:expense_categories,id',
             'amount'              => 'required|numeric|min:0.01',
             'spend_method'        => 'required|in:cash,card,bank_transfer',
             'remarks'             => 'nullable|string|max:1000',
-        ];
+            'employee_id'         => 'nullable|exists:employees,id',
+        ]);
 
-        $validation = Validator::make($attributes, $rules);
-        if ($validation->fails()) {
-            return redirect()->back()
-                ->with(['error' => 'Validation failed. Please check your inputs.'])
-                ->withErrors($validation)
-                ->withInput();
-        }
-
-        // Find the existing expense entry
         $expense = DailyExpense::findOrFail($id);
 
-        // Update the expense details
-        $expense->date                = $request->date;
-        $expense->expense_category_id = $request->expense_category_id;
-        $expense->amount              = $request->amount;
-        $expense->spend_method        = $request->spend_method;
-        $expense->remarks             = $request->remarks;
-        $expense->save();
+        DB::transaction(function () use ($expense, $request) {
+            // Reverse prior voucher if any
+            $this->reverseExpenseJournal($expense->id);
 
-        // return redirect()->route('dailyExpenses.index')
-        //     ->with(['success' => 'Expense updated successfully.']);
-        return redirect()->route('dailyExpenses.index')->with('success', 'Updated successfully.');
+            // Update expense record
+            $expense->update([
+                'date'                => $request->date,
+                'expense_category_id' => $request->expense_category_id,
+                'employee_id'         => $request->employee_id,
+                'amount'              => $request->amount,
+                'spend_method'        => $request->spend_method,
+                'remarks'             => $request->remarks,
+            ]);
 
+            // Post new updated journal entry
+            $this->postExpenseJournal($expense->fresh(['expenseCategory', 'employee']));
+        });
+
+        return redirect()->route('dailyExpenses.index')->with('success', 'Daily Expense updated and ledger adjusted successfully.');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified expense and reverse its journal voucher.
      */
     public function destroy(string $id)
     {
         $expense = DailyExpense::findOrFail($id);
-        $expense->delete();
-        return redirect()->back()->with(['success' => 'Expense deleted successfully.']);
+
+        DB::transaction(function () use ($expense) {
+            $this->reverseExpenseJournal($expense->id);
+            $expense->delete();
+        });
+
+        return redirect()->back()->with(['success' => 'Expense deleted and associated journal entry reversed successfully.']);
+    }
+
+    /**
+     * Post or update double-entry journal voucher for a DailyExpense record.
+     */
+    protected function postExpenseJournal(DailyExpense $expense): void
+    {
+        try {
+            $amount = (float) $expense->amount;
+            if ($amount <= 0) {
+                return;
+            }
+
+            // Determine Debit Account (Expense Account)
+            $categoryName = $expense->expenseCategory?->name ?? 'Office Expense';
+            $expenseAcc = null;
+            if (stripos($categoryName, 'salary') !== false || stripos($categoryName, 'staff') !== false) {
+                $expenseAcc = ChartOfAccount::where('account_code', '5210')->first();
+            }
+            if (!$expenseAcc) {
+                $expenseAcc = ChartOfAccount::where('account_code', '5230')->first();
+            }
+
+            // Determine Credit Account (Payment Source Asset Account)
+            $sourceAcc = null;
+            if ($expense->spend_method === 'cash') {
+                $sourceAcc = ChartOfAccount::where('account_code', '1110')->first();
+            } else {
+                $sourceAcc = ChartOfAccount::where('account_code', '1120')->first();
+            }
+            if (!$sourceAcc) {
+                $sourceAcc = ChartOfAccount::where('account_code', '1110')->first();
+            }
+
+            if ($expenseAcc && $sourceAcc) {
+                $empName = $expense->employee ? " (Staff: {$expense->employee->name})" : '';
+                $methodLabel = ucfirst(str_replace('_', ' ', $expense->spend_method ?? 'cash'));
+                $desc = "Daily Expense [{$categoryName}] — " . ($expense->remarks ?: 'Operational Expense') . "{$empName} [Paid via {$methodLabel}]";
+
+                postJournalEntry([
+                    'entry_date'     => $expense->date ? date('Y-m-d', strtotime($expense->date)) : date('Y-m-d'),
+                    'reference_type' => 'expense',
+                    'reference_id'   => $expense->id,
+                    'description'    => $desc,
+                    'status'         => 'approved',
+                    'created_by'     => Auth::id() ?? 1,
+                    'items'          => [
+                        [
+                            'account_id'  => $expenseAcc->id,
+                            'debit'       => $amount,
+                            'credit'      => 0.00,
+                            'description' => "Expense recorded under {$expenseAcc->account_name} ({$categoryName})",
+                        ],
+                        [
+                            'account_id'  => $sourceAcc->id,
+                            'debit'       => 0.00,
+                            'credit'      => $amount,
+                            'description' => "Payment disbursed via {$sourceAcc->account_name}",
+                        ],
+                    ],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Expense auto-journal posting failed: ' . $e->getMessage(), [
+                'expense_id' => $expense->id,
+            ]);
+        }
+    }
+
+    /**
+     * Reverse any existing journal entry for a DailyExpense.
+     */
+    protected function reverseExpenseJournal(int $expenseId): void
+    {
+        try {
+            $existing = JournalEntry::where('reference_type', 'expense')
+                ->where('reference_id', $expenseId)
+                ->whereIn('status', ['posted', 'approved'])
+                ->latest()
+                ->first();
+
+            if ($existing) {
+                reverseJournalEntry($existing->id, "Daily Expense #{$expenseId} updated or deleted");
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Expense auto-journal reversal failed: ' . $e->getMessage());
+        }
     }
 
     public function getAdvanceSum($employeeId)

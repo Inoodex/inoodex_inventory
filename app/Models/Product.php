@@ -13,8 +13,10 @@ class Product extends Model
 {
     use HasFactory, SoftDeletes, LogsActivity;
 
-      protected $casts = [
+    protected $casts = [
         'photos' => 'array',
+        'min_stock_alert' => 'integer',
+        'is_serialized' => 'boolean',
     ];
 
     protected $fillable = [
@@ -27,7 +29,28 @@ class Product extends Model
         'status',
         'warranty',
         'is_serialized',
+        'min_stock_alert',
     ];
+
+    /**
+     * Check if product current stock is at or below the alert threshold
+     */
+    public function isLowStock(): bool
+    {
+        $currentStock = $this->inventory ? (int)$this->inventory->current_stock : 0;
+        $threshold = (int)($this->min_stock_alert ?: 5);
+        return $currentStock <= $threshold;
+    }
+
+    /**
+     * Scope for querying low stock products
+     */
+    public function scopeLowStock($query)
+    {
+        return $query->whereHas('inventory', function ($q) {
+            $q->whereRaw('inventories.current_stock <= COALESCE(products.min_stock_alert, 5)');
+        });
+    }
 
     public function serials()
     {

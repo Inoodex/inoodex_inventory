@@ -206,7 +206,7 @@
                     <div>
                         <h6 class="text-muted fw-normal mb-1">Low Stock Warning</h6>
                         <h4 class="mb-0 fw-bold text-dark">
-                            {{ number_format($inventories->filter(fn($i) => $i->current_stock <= 5 && $i->current_stock > 0)->count()) }}
+                            {{ number_format($inventories->filter(fn($i) => $i->current_stock <= ($i->product?->min_stock_alert ?? 5) && $i->current_stock > 0)->count()) }}
                         </h4>
                     </div>
                 </div>
@@ -267,6 +267,7 @@
                         @forelse ($inventories as $inventory)
                             @php
                                 $stock = $inventory->current_stock ?? 0;
+                                $minAlert = $inventory->product?->min_stock_alert ?? 5;
                                 $searchString = strtolower(($inventory->product?->name ?? '') . ' ' . ($inventory->product?->model ?? ''));
                             @endphp
                             <tr class="inventory-row" data-search="{{ $searchString }}">
@@ -276,7 +277,7 @@
                                         <span class="fw-bold text-dark d-block text-truncate" title="{{ $inventory->product?->name }}">
                                             {{ Str::limit($inventory->product?->name ?? 'Product Not Found', 40) }}
                                         </span>
-                                        <small class="text-muted fs-7">Model: {{ $inventory->product?->model ?? 'N/A' }}</small>
+                                        <small class="text-muted fs-7">Model: {{ $inventory->product?->model ?? 'N/A' }} | Alert: &le; {{ $minAlert }}</small>
                                     </div>
                                 </td>
                                 <td>
@@ -285,7 +286,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @if ($stock > 5)
+                                    @if ($stock > $minAlert)
                                         <span class="badge badge-soft-success px-3 py-2 rounded-pill fs-7">
                                             <i class="fe fe-check-circle me-1"></i> {{ $stock }} Units Available
                                         </span>
