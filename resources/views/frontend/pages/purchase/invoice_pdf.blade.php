@@ -5,8 +5,7 @@
     <meta charset="UTF-8" />
     <title>Purchase Invoice #{{ $purchaseNo ?? ('PUR-' . str_pad($purchase->id, 5, '0', STR_PAD_LEFT)) }}</title>
     @php
-        $padPath = public_path('assets/invoice/final_pad.png');
-        $padBase64 = file_exists($padPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($padPath)) : '';
+        $padBase64 = getPdfBackground($company ?? ($purchase->companyDetail ?? null), 'invoice');
         $itemsList = isset($items) && count($items) > 0 ? $items : collect([$purchase]);
         $invNo = $purchaseNo ?? ('PUR-' . str_pad($purchase->id, 5, '0', STR_PAD_LEFT));
         $dateVal = $createdAt ?? ($purchase->created_at ?? now());

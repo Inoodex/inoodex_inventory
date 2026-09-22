@@ -5,10 +5,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="author" content="Inoodex">
-    <title>Sign In — Inoodex Inventory</title>
+    <title>Sign In — {{ getSetting('site_name', 'Inoodex Inventory') }}</title>
 
     <!-- Favicon -->
-    <link rel="shortcut icon" href="{{ asset('assets') }}/img/logo.jpg">
+    <link rel="shortcut icon" href="{{ asset(getSetting('favicon', 'assets/img/logo.jpg')) }}">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -286,9 +286,9 @@
 
     <div class="login-card">
         <div class="brand-header">
-            <img src="{{ asset('assets') }}/img/logo.png" alt="Inoodex Logo" class="brand-logo">
-            <h1>Inoodex Inventory</h1>
-            <p>Enter your credentials to access dashboard</p>
+            <img src="{{ asset(getSetting('login_logo', getSetting('site_logo', 'assets/img/logo.png'))) }}" alt="{{ getSetting('site_name', 'Inoodex Logo') }}" class="brand-logo" style="max-height:60px; object-fit:contain;">
+            <h1>{{ getSetting('site_name', 'Inoodex Inventory') }}</h1>
+            <p>{{ getSetting('site_tagline', 'Enter your credentials to access dashboard') }}</p>
         </div>
 
         @if ($errors->any())

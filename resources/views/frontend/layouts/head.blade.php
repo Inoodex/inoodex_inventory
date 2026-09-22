@@ -2,10 +2,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Itec Inventory</title>
+    <title>{{ getSetting('site_name', config('app.name', 'Inoodex Inventory')) }}</title>
 
     <!-- Favicon -->
-    <link rel="shortcut icon" href="{{ asset('assets') }}/img/logo.jpg">
+    <link rel="shortcut icon" href="{{ asset(getSetting('favicon', 'assets/img/logo.jpg')) }}">
 
     <!-- Theme Switcher (Dark/Light) -->
     <script>

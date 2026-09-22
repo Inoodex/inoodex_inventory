@@ -18,10 +18,14 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(UserSeeder::class);
         $this->call(PermissionSeeder::class);
-        $this->call(CategorySeeder::class);
-        $this->call(BrandSeeder::class);
-        $this->call(VendorSeeder::class);
-        $this->call(CustomerSeeder::class);
-        $this->call(ProductSeeder::class);
+        $this->call(SettingSeeder::class);
+        $this->call(ChartOfAccountSeeder::class);
+        // $this->call(CategorySeeder::class);
+        // $this->call(BrandSeeder::class);
+        // $this->call(VendorSeeder::class);
+        // $this->call(CustomerSeeder::class);
+        // $this->call(ProductSeeder::class);
+        // $this->call(PurchaseSeeder::class);
+        // $this->call(SaleSeeder::class);
     }
 }

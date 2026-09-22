@@ -56,10 +56,10 @@ class ProjectBill extends Model
             'project' => $this->project,
             'client' => $this->project->client,
             'company' => [
-                'name' => 'Intelligent Technology',
-                'address' => 'Your Company Address Here',
-                'phone' => '+880 XXXX-XXXXXX',
-                'email' => 'info@intelligent-tech.com',
+                'name' => getDefaultCompanyDetail()?->name ?? 'Inoodex Inventory',
+                'address' => getDefaultCompanyDetail()?->address ?? 'Your Company Address Here',
+                'phone' => getDefaultCompanyDetail()?->phone ?? '+880 XXXX-XXXXXX',
+                'email' => getDefaultCompanyDetail()?->email ?? 'hello@inoodex.com',
             ],
             'amount_in_words' => $this->convertToWords($this->total_amount),
         ];

@@ -1,6 +1,6 @@
 @extends('errors.layout')
 
-@section('title', 'Access Forbidden - iTech Inventory')
+@section('title', 'Access Forbidden - Inoodex Inventory')
 @section('code', '403')
 @section('badge', 'Access Restricted')
 @section('heading', 'Access Denied')

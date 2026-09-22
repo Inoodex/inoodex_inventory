@@ -359,9 +359,9 @@ public function download(Quotation $quotation)
         'company_email' => $quotation->company_email ?? '',
         'company_website' => $quotation->company_website ?? '',
         'company' => [
-            'name' => $quotation->company_name ?? 'Intelligent Technology',
-            'signatory_name' => $quotation->signatory_name ?? 'Engr. Shamsul Alam',
-            'signatory_designation' => $quotation->signatory_designation ?? 'Director (Technical)',
+            'name' => $quotation->company_name ?? (getDefaultCompanyDetail()?->name ?? 'Inoodex Inventory'),
+            'signatory_name' => $quotation->signatory_name ?? (getDefaultCompanyDetail()?->signatory_name ?? 'Authorized Signatory'),
+            'signatory_designation' => $quotation->signatory_designation ?? (getDefaultCompanyDetail()?->signatory_designation ?? 'Authorized Person'),
             'phone' => $quotation->company_phone ?? '',
             'email' => $quotation->company_email ?? '',
             'website' => $quotation->company_website ?? '',

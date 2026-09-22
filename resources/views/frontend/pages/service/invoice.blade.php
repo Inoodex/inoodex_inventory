@@ -20,9 +20,9 @@
                     <img src="{{ asset('assets/invoice/logo-transparent.webp') }}" alt="" />
                 </div>
                 <div class="company-info">
-                    <h1>Intelligent Technology</h1>
-                    <p>Phone: 01904400202</p>
-                    <p>Email: info.itechbd@yahoo.com</p>
+                    <h1>{{ getDefaultCompanyDetail()?->name ?? 'Inoodex Inventory' }}</h1>
+                    <p>Phone: {{ getDefaultCompanyDetail()?->phone ?? '01904400202' }}</p>
+                    <p>Email: {{ getDefaultCompanyDetail()?->email ?? 'info@inoodex.com' }}</p>
                 </div>
             </div>
             <div class="invoice-title">

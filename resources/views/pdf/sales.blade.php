@@ -107,17 +107,22 @@
             padding-top: 8px;
         }
     </style>
+    @php
+        $padBase64 = getPdfBackground($company ?? null, 'report');
+    @endphp
 </head>
 <body>
+    @if($padBase64)
     <div class="pdf-bg-pad">
-        <img src="{{ public_path('assets/invoice/final_pad.png') }}" />
+        <img src="{{ $padBase64 }}" />
     </div>
+    @endif
 
     <div class="header">
         <table width="100%">
             <tr>
                 <td>
-                    <div class="company-name">Intelligent Technology</div>
+                    <div class="company-name">{{ getDefaultCompanyDetail()?->name ?? 'Inoodex Inventory' }}</div>
                     <div style="font-size: 9px; color: #475569;">Inventory &amp; Sales Management System</div>
                 </td>
                 <td class="text-end">
@@ -194,7 +199,7 @@
     <div style="clear: both;"></div>
 
     <div class="footer">
-        Intelligent Technology Inventory System &bull; Confidential Sales List Report
+        {{ getDefaultCompanyDetail()?->name ?? 'Inoodex Inventory' }} &bull; Confidential Sales List Report
     </div>
 </body>
 </html>

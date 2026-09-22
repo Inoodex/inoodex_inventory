@@ -105,7 +105,7 @@ Concerning the above-mentioned subject, we are pleased to propose a technical so
 
 We appreciate your interest in Cost-saving & new state-of-the-art technology ID Card Printers. We guarantee customer satisfaction by providing both excellent services and products of the highest quality. We maintain spares as recommended by our principal. 
 
-Intelligent Technology is a leading card printer, office automation, and security solution provider. The company has an expert team of technical persons consisting of graduates and diploma engineers. For our valued customers we have a service desk available on an 8 / 6 basis which ensures instant support. Please note that Intelligent Technology is the original Distributor of all kinds of the best products, ensuring quality products with quality services. Especially authorized distributor for HiTi Digital Inc, Taiwan, and reseller for Zebra Technologies, USA & Evolis Card Printer, France in Bangladesh. Also Provide a Biometric Attendance and Access Control System, CCTV Surveillance System, Fire Safety & Security Solutions and Interactive Whiteboard System for the Classroom.
+Inoodex is a leading card printer, office automation, and security solution provider. The company has an expert team of technical persons consisting of graduates and diploma engineers. For our valued customers we have a service desk available on an 8 / 6 basis which ensures instant support. Please note that Inoodex is the original Distributor of all kinds of the best products, ensuring quality products with quality services. Especially authorized distributor for HiTi Digital Inc, Taiwan, and reseller for Zebra Technologies, USA & Evolis Card Printer, France in Bangladesh. Also Provide a Biometric Attendance and Access Control System, CCTV Surveillance System, Fire Safety & Security Solutions and Interactive Whiteboard System for the Classroom.
 
 Please do not hesitate to contact me for further inquiries. We will be happy to provide our best to you all the time. We are ready to conduct the demonstration at any time as per your kind schedule. A detail of the offer is enclosed herewith. If you have any further assistance, please do not hesitate to contact us. We assure you of our best co-operation.
 
@@ -472,16 +472,15 @@ Yours Sincerely,</textarea>
 Concerning the above-mentioned subject, we are pleased to propose a technical solution and financial appraisal for the supply & installation of the ID Card Printing System for your organization.
 
 We appreciate your interest in Cost-saving & new state-of-the-art technology ID Card Printers. We guarantee customer satisfaction by providing both excellent services and products of the highest quality. We maintain spares as recommended by our principal. 
-
-Intelligent Technology is a leading card printer, office automation, and security solution provider. The company has an expert team of technical persons consisting of graduates and diploma engineers. For our valued customers we have a service desk available on an 8 / 6 basis which ensures instant support. Please note that Intelligent Technology is the original Distributor of all kinds of the best products, ensuring quality products with quality services. Especially authorized distributor for HiTi Digital Inc, Taiwan, and reseller for Zebra Technologies, USA & Evolis Card Printer, France in Bangladesh. Also Provide a Biometric Attendance and Access Control System, CCTV Surveillance System, Fire Safety & Security Solutions and Interactive Whiteboard System for the Classroom.
-
+Inoodex is a leading card printer, office automation, and security solution provider. The company has an expert team of technical persons consisting of graduates and diploma engineers. For our valued customers we have a service desk available on an 8 / 6 basis which ensures instant support. Please note that Inoodex is the original Distributor of all kinds of the best products, ensuring quality products with quality services. Especially authorized distributor for HiTi Digital Inc, Taiwan, and reseller for Zebra Technologies, USA & Evolis Card Printer, France in Bangladesh. Also Provide a Biometric Attendance and Access Control System, CCTV Surveillance System, Fire Safety & Security Solutions and Interactive Whiteboard System for the Classroom.
+ 
 Please do not hesitate to contact me for further inquiries. We will be happy to provide our best to you all the time. We are ready to conduct the demonstration at any time as per your kind schedule. A detail of the offer is enclosed herewith. If you have any further assistance, please do not hesitate to contact us. We assure you of our best co-operation.
-
+ 
 Thanks, with assuring you our best services.
 Yours Sincerely,`;
 
                                 const defaultTerms =
-                                    `Intelligent Technology will promptly deliver the product from available stock or within 7 to 15 days upon order placement.`;
+                                    `Inoodex will promptly deliver the product from available stock or within 7 to 15 days upon order placement.`;
 
                                 // Initialize default content
                                 document.getElementById('body_content').value = defaultBodyContent;

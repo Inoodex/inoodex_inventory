@@ -1,6 +1,6 @@
 @extends('errors.layout')
 
-@section('title', 'Page Expired - iTech Inventory')
+@section('title', 'Page Expired - Inoodex Inventory')
 @section('code', '419')
 @section('badge', 'Session Expired')
 @section('heading', 'Page Expired')

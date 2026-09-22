@@ -2,27 +2,27 @@
 <div class="header header-one">
     <a href="{{ route('index') }}"
         class="d-inline-flex d-sm-inline-flex align-items-center d-md-inline-flex d-lg-none align-items-center device-logo">
-        <img style="width:70px" src="{{ asset('assets') }}/img/logo.png" class="img-fluid logo2" alt="Logo">
+        <img style="max-height:40px; max-width:140px; object-fit:contain;" src="{{ asset(getSetting('site_logo', 'assets/img/logo.png')) }}" class="img-fluid logo2" alt="{{ getSetting('site_name', 'Inoodex') }}">
     </a>
     <div class="main-logo d-inline float-start d-lg-flex align-items-center d-none d-sm-none d-md-none">
         <div class="logo-white">
             <a href="{{ route('index') }}">
-                <img style="width:70px" src="{{ asset('assets') }}/img/logo.png" class="img-fluid logo-blue"
-                    alt="Logo">
+                <img style="max-height:40px; max-width:140px; object-fit:contain;" src="{{ asset(getSetting('site_logo_white', getSetting('site_logo', 'assets/img/logo.png'))) }}" class="img-fluid logo-blue"
+                    alt="{{ getSetting('site_name', 'Inoodex') }}">
             </a>
             <a href="{{ route('index') }}">
-                <img style="width:70px" src="{{ asset('assets') }}/img/logo.png" class="img-fluid logo-small"
-                    alt="Logo">
+                <img style="max-height:40px; max-width:40px; object-fit:contain;" src="{{ asset(getSetting('favicon', 'assets/img/logo.png')) }}" class="img-fluid logo-small"
+                    alt="{{ getSetting('site_name', 'Inoodex') }}">
             </a>
         </div>
         <div class="logo-color">
             <a href="{{ route('index') }}">
-                <img style="width:70px" src="{{ asset('assets') }}/img/logo.png" class="img-fluid logo-blue"
-                    alt="Logo">
+                <img style="max-height:40px; max-width:140px; object-fit:contain;" src="{{ asset(getSetting('site_logo', 'assets/img/logo.png')) }}" class="img-fluid logo-blue"
+                    alt="{{ getSetting('site_name', 'Inoodex') }}">
             </a>
             <a href="{{ route('index') }}">
-                <img style="width:70px" src="{{ asset('assets') }}/img/logo.png" class="img-fluid logo-small"
-                    alt="Logo">
+                <img style="max-height:40px; max-width:40px; object-fit:contain;" src="{{ asset(getSetting('favicon', 'assets/img/logo.png')) }}" class="img-fluid logo-small"
+                    alt="{{ getSetting('site_name', 'Inoodex') }}">
             </a>
         </div>
     </div>

@@ -13,7 +13,7 @@ use App\Http\Controllers\{
     CompanyDetailController, PaymentController, ReturnController, WarrantyController,
     ChartOfAccountController, JournalEntryController, LedgerController,
     TrialBalanceController, FinancialStatementController,
-    FiscalYearController, VendorDueController
+    FiscalYearController, VendorDueController, SettingController
 };
 
 use Illuminate\Support\Facades\{Auth, Route};
@@ -44,9 +44,11 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // =========================================================================
-// 2. SYSTEM ADMINISTRATION & SECURITY
+// 2. SYSTEM ADMINISTRATION & SETTINGS
 // =========================================================================
-Route::middleware(['auth', 'permission:Administration'])->group(function () {
+Route::middleware(['auth', 'permission:Administration|Settings'])->group(function () {
+    Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
     Route::resource('users', UserController::class);
     Route::resource('role', RoleController::class);
     Route::resource('permission', PermissionController::class);

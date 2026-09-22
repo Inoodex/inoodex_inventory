@@ -15,6 +15,10 @@ class CompanyDetail extends Model
         'signatory_designation',
         'signature_image',
         'seal_image',
+        'pad_image',
+        'report_bg_image',
+        'show_invoice_bg',
+        'show_report_bg',
         'phone',
         'email',
         'website',
@@ -25,7 +29,9 @@ class CompanyDetail extends Model
 
     protected $casts = [
         'is_default' => 'boolean',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
+        'show_invoice_bg' => 'boolean',
+        'show_report_bg' => 'boolean',
     ];
 
     // Relationship with bills

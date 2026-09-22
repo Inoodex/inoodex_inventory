@@ -5,8 +5,7 @@
     <meta charset="UTF-8" />
     <title>Service Invoice #{{ $service->service_no ?? $service->id }}</title>
     @php
-        $padPath = public_path('assets/invoice/final_pad.png');
-        $padBase64 = file_exists($padPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($padPath)) : '';
+        $padBase64 = getPdfBackground($company ?? ($service->companyDetail ?? null), 'invoice');
         $payableTotal = max(0, ($service->bill ?? 0) - ($service->discount ?? 0));
     @endphp
     <style>

@@ -4,8 +4,7 @@
     <meta charset="UTF-8" />
     <title>Bill {{ $bill->reference_number }}</title>
     @php
-        $padPath = public_path('assets/invoice/final_pad.png');
-        $padBase64 = file_exists($padPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($padPath)) : '';
+        $padBase64 = getPdfBackground($company ?? ($bill->companyDetail ?? null), 'invoice');
     @endphp
     <style>
         @page {

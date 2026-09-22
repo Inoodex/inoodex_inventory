@@ -4,21 +4,20 @@
     <meta charset="UTF-8" />
     <title>Bills Report</title>
     @php
-        $toFileUrl = function ($path) {
-            return 'file:///' . str_replace(['\\', ' '], ['/', '%20'], public_path($path));
-        };
+        $padBase64 = getPdfBackground($company ?? null, 'report');
     @endphp
     <style>
         @page {
-            background-image: url('{{ $toFileUrl('assets/invoice/final_pad.png') }}');
+            @if($padBase64)
+            background-image: url('{{ $padBase64 }}');
             background-image-resize: 6;
+            @endif
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: Arial, sans-serif;
             font-size: 12px;
             color: #333;
-            background: url('{{ $toFileUrl('assets/invoice/final_pad.png') }}') no-repeat center top / 100% 100% fixed transparent !important;
         }
         .header-table { width: 100%; margin-bottom: 20px; }
         .header-table td { vertical-align: top; padding: 4px; }

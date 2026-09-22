@@ -442,3 +442,115 @@ if (!function_exists('reverseJournalEntry')) {
     }
 }
 
+if (!function_exists('getDefaultCompanyDetail')) {
+    /**
+     * Get the default or first active company profile.
+     */
+    function getDefaultCompanyDetail(): ?\App\Models\CompanyDetail
+    {
+        return \App\Models\CompanyDetail::where('is_default', true)->first()
+            ?? \App\Models\CompanyDetail::where('is_active', true)->first()
+            ?? \App\Models\CompanyDetail::first();
+    }
+}
+
+if (!function_exists('getPdfBackground')) {
+    /**
+     * Resolve the dynamic Base64 data URI for invoice or report letterhead backgrounds.
+     *
+     * @param \App\Models\CompanyDetail|null $company
+     * @param string $type 'invoice' | 'report'
+     * @return string Base64 data URI or empty string if disabled/missing
+     */
+    function getPdfBackground(?\App\Models\CompanyDetail $company = null, string $type = 'invoice'): string
+    {
+        $company = $company ?? getDefaultCompanyDetail();
+
+        // Check toggle switches
+        if ($company) {
+            if ($type === 'report' && isset($company->show_report_bg) && !$company->show_report_bg) {
+                return '';
+            }
+            if ($type === 'invoice' && isset($company->show_invoice_bg) && !$company->show_invoice_bg) {
+                return '';
+            }
+        }
+
+        $resolvedPath = null;
+
+        // 1. Check report-specific background
+        if ($type === 'report' && !empty($company?->report_bg_image)) {
+            $reportPath = public_path($company->report_bg_image);
+            if (file_exists($reportPath)) {
+                $resolvedPath = $reportPath;
+            }
+        }
+
+        // 2. Check company letterhead / pad image
+        if (!$resolvedPath && !empty($company?->pad_image)) {
+            $padPath = public_path($company->pad_image);
+            if (file_exists($padPath)) {
+                $resolvedPath = $padPath;
+            }
+        }
+
+        // 3. Fallback to default system asset
+        if (!$resolvedPath) {
+            $defaultPath = public_path('assets/invoice/final_pad.png');
+            if (file_exists($defaultPath)) {
+                $resolvedPath = $defaultPath;
+            }
+        }
+
+        if (!$resolvedPath || !file_exists($resolvedPath)) {
+            return '';
+        }
+
+        $extension = strtolower(pathinfo($resolvedPath, PATHINFO_EXTENSION));
+        $mimeType = match ($extension) {
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            default => 'image/png',
+        };
+
+        $content = @file_get_contents($resolvedPath);
+        if ($content === false) {
+            return '';
+        }
+
+        return 'data:' . $mimeType . ';base64,' . base64_encode($content);
+    }
+}
+
+if (!function_exists('getSetting')) {
+    /**
+     * Retrieve system setting value by key with fallback default.
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    function getSetting(string $key, mixed $default = null): mixed
+    {
+        return \App\Models\Setting::get($key, $default);
+    }
+}
+
+if (!function_exists('setSetting')) {
+    /**
+     * Store or update system setting value by key.
+     *
+     * @param string $key
+     * @param mixed $value
+     * @param string $group
+     * @param string $type
+     * @return \App\Models\Setting
+     */
+    function setSetting(string $key, mixed $value, string $group = 'general', string $type = 'text'): \App\Models\Setting
+    {
+        return \App\Models\Setting::set($key, $value, $group, $type);
+    }
+}
+

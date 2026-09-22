@@ -260,19 +260,26 @@
                     </li>
                 @endif
 
-                 <!-- 14. System Authorization & Users -->
-                @if($canView('Administration'))
+                 <!-- 14. System Authorization & Settings -->
+                @if($canView('Administration') || $canView('Settings'))
                     <li class="menu-title"><span>System & Security</span></li>
                     <li>
-                        <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
-                            <i class="fe fe-user"></i> <span> Users</span>
-                        </a>
-                        <a href="{{ route('role.index') }}" class="{{ request()->routeIs('role.*') ? 'active' : '' }}">
-                            <i class="fe fe-shield"></i> <span> Roles</span>
-                        </a>
-                        <a href="{{ route('permission.index') }}" class="{{ request()->routeIs('permission.*') ? 'active' : '' }}">
-                            <i class="fe fe-lock"></i> <span> Permissions</span>
-                        </a>
+                        @if($canView('Settings'))
+                            <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">
+                                <i class="fe fe-settings"></i> <span> General Settings</span>
+                            </a>
+                        @endif
+                        @if($canView('Administration'))
+                            <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
+                                <i class="fe fe-user"></i> <span> Users</span>
+                            </a>
+                            <a href="{{ route('role.index') }}" class="{{ request()->routeIs('role.*') ? 'active' : '' }}">
+                                <i class="fe fe-shield"></i> <span> Roles</span>
+                            </a>
+                            <a href="{{ route('permission.index') }}" class="{{ request()->routeIs('permission.*') ? 'active' : '' }}">
+                                <i class="fe fe-lock"></i> <span> Permissions</span>
+                            </a>
+                        @endif
                     </li>
                 @endif
 

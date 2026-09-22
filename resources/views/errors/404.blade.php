@@ -1,6 +1,6 @@
 @extends('errors.layout')
 
-@section('title', 'Page Not Found - iTech Inventory')
+@section('title', 'Page Not Found - Inoodex Inventory')
 @section('code', '404')
 @section('badge', 'Page Not Found')
 @section('heading', 'Lost in the Inventory?')

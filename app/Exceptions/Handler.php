@@ -57,7 +57,7 @@ class Handler extends ExceptionHandler
             }
             return response()->view('errors.layout', [
                 'exception' => $e,
-                'title' => 'Access Forbidden - iTech Inventory',
+                'title' => 'Access Forbidden - Inoodex Inventory',
                 'code' => '403',
                 'badge' => 'Access Denied',
                 'heading' => 'Access Restricted',

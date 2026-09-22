@@ -79,10 +79,10 @@
                 <p class="text-muted small mb-0">Manage legal entities, authorized signatories, contact information, and billing defaults</p>
             </div>
             <div>
-                <button type="button" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#add-company-modal">
+                <a href="{{ route('company-details.create') }}" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-2">
                     <i class="fe fe-plus-circle fs-6"></i>
                     <span>Add Company Details</span>
-                </button>
+                </a>
             </div>
         </div>
     </div>
@@ -161,6 +161,7 @@
                             <th class="ps-4">#</th>
                             <th>Company Name</th>
                             <th>Signatory & Designation</th>
+                            <th>Letterhead / Background</th>
                             <th>Contact Info</th>
                             <th>Status</th>
                             <th>Default</th>
@@ -183,6 +184,27 @@
                                 <div>
                                     <span class="fw-semibold text-dark d-block">{{ $company->signatory_name }}</span>
                                     <small class="text-muted fs-7">{{ $company->signatory_designation }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    @if ($company->pad_image && file_exists(public_path($company->pad_image)))
+                                        <a href="{{ asset($company->pad_image) }}" target="_blank" title="View Custom Invoice Pad">
+                                            <img src="{{ asset($company->pad_image) }}" style="width: 32px; height: 42px; object-fit: cover; border-radius: 4px; border: 1px solid #dbe2ea;" alt="Pad">
+                                        </a>
+                                    @else
+                                        <a href="{{ asset('assets/invoice/final_pad.png') }}" target="_blank" title="Default System Letterhead">
+                                            <img src="{{ asset('assets/invoice/final_pad.png') }}" style="width: 32px; height: 42px; object-fit: cover; border-radius: 4px; border: 1px dashed #dbe2ea; opacity: 0.7;" alt="Default Pad">
+                                        </a>
+                                    @endif
+                                    <div class="d-flex flex-column">
+                                        <span class="badge {{ ($company->show_invoice_bg ?? true) ? 'bg-success-light text-success' : 'bg-light text-muted' }} py-0 px-2 rounded-1 fs-8 mb-1" style="font-size: 0.7rem;">
+                                            Invoice BG: {{ ($company->show_invoice_bg ?? true) ? 'ON' : 'OFF' }}
+                                        </span>
+                                        <span class="badge {{ ($company->show_report_bg ?? true) ? 'bg-info-light text-info' : 'bg-light text-muted' }} py-0 px-2 rounded-1 fs-8" style="font-size: 0.7rem;">
+                                            Report BG: {{ ($company->show_report_bg ?? true) ? 'ON' : 'OFF' }}
+                                        </span>
+                                    </div>
                                 </div>
                             </td>
                             <td>
@@ -236,7 +258,7 @@
                                         <li><hr class="dropdown-divider opacity-50"></li>
                                         @endif
                                         <li>
-                                            <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#edit-company-modal{{ $company->id }}">
+                                            <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="{{ route('company-details.edit', $company->id) }}">
                                                 <i class="fe fe-edit text-primary"></i>
                                                 <span>Edit Company</span>
                                             </a>
@@ -266,9 +288,9 @@
                                     </div>
                                     <h5 class="fw-bold text-dark mb-1">No Company Details Found</h5>
                                     <p class="text-muted small mb-3">Create company details to manage legal entities and signatories for invoices & bills</p>
-                                    <button type="button" class="btn btn-primary btn-sm px-3 rounded-2" data-bs-toggle="modal" data-bs-target="#add-company-modal">
+                                    <a href="{{ route('company-details.create') }}" class="btn btn-primary btn-sm px-3 rounded-2">
                                         Add Company Details
-                                    </button>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
@@ -279,169 +301,6 @@
         </div>
     </div>
 </div>
-
-<!-- Add Company Details Modal -->
-<div class="modal fade" id="add-company-modal" aria-hidden="true" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg rounded-3">
-            <div class="modal-header bg-light py-3 border-bottom">
-                <h5 class="modal-title fw-bold text-dark">Add Company Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('company-details.store') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Company Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control" placeholder="e.g. iTech Solutions Ltd" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Signatory Name <span class="text-danger">*</span></label>
-                            <input type="text" name="signatory_name" class="form-control" placeholder="e.g. John Doe" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Signatory Designation <span class="text-danger">*</span></label>
-                            <input type="text" name="signatory_designation" class="form-control" placeholder="e.g. Managing Director" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Signatory Signature Image</label>
-                            <input type="file" name="signature_image" class="form-control" accept="image/*">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Company Seal Image</label>
-                            <input type="file" name="seal_image" class="form-control" accept="image/*">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Phone Number</label>
-                            <input type="text" name="phone" class="form-control" placeholder="e.g. +880 1700-000000">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Email Address</label>
-                            <input type="email" name="email" class="form-control" placeholder="e.g. info@itech.com">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Website URL</label>
-                            <input type="text" name="website" class="form-control" placeholder="e.g. https://itech.com">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-semibold small text-secondary">Company Address</label>
-                            <textarea name="address" class="form-control" rows="3" placeholder="Full registered company office address..."></textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check mt-2">
-                                <input type="checkbox" name="is_default" value="1" class="form-check-input" id="add_is_default">
-                                <label class="form-check-label fw-semibold small text-dark" for="add_is_default">
-                                    Set as Default Company
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check mt-2">
-                                <input type="checkbox" name="is_active" value="1" class="form-check-input" id="add_is_active" checked>
-                                <label class="form-check-label fw-semibold small text-dark" for="add_is_active">
-                                    Active Entity
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="d-flex justify-content-end gap-2 p-3 border-top bg-light">
-                    <button type="button" class="btn btn-light px-4 rounded-3 text-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">Save Company</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Company Details Modals -->
-@foreach ($companies as $company)
-<div class="modal fade" id="edit-company-modal{{ $company->id }}" aria-hidden="true" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg rounded-3">
-            <div class="modal-header bg-light py-3 border-bottom">
-                <h5 class="modal-title fw-bold text-dark">Edit Company Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('company-details.update', $company->id) }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                @method('PUT')
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Company Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control" value="{{ old('name', $company->name) }}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Signatory Name <span class="text-danger">*</span></label>
-                            <input type="text" name="signatory_name" class="form-control" value="{{ old('signatory_name', $company->signatory_name) }}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Signatory Designation <span class="text-danger">*</span></label>
-                            <input type="text" name="signatory_designation" class="form-control" value="{{ old('signatory_designation', $company->signatory_designation) }}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Signatory Signature Image</label>
-                            <input type="file" name="signature_image" class="form-control" accept="image/*">
-                            @if ($company->signature_image)
-                                <div class="mt-1">
-                                    <img src="{{ asset($company->signature_image) }}" style="max-height: 35px;" alt="Signature Preview">
-                                </div>
-                            @endif
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Company Seal Image</label>
-                            <input type="file" name="seal_image" class="form-control" accept="image/*">
-                            @if ($company->seal_image)
-                                <div class="mt-1">
-                                    <img src="{{ asset($company->seal_image) }}" style="max-height: 35px;" alt="Seal Preview">
-                                </div>
-                            @endif
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Phone Number</label>
-                            <input type="text" name="phone" class="form-control" value="{{ old('phone', $company->phone) }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Email Address</label>
-                            <input type="email" name="email" class="form-control" value="{{ old('email', $company->email) }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold small text-secondary">Website URL</label>
-                            <input type="text" name="website" class="form-control" value="{{ old('website', $company->website) }}">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-semibold small text-secondary">Company Address</label>
-                            <textarea name="address" class="form-control" rows="3">{{ old('address', $company->address) }}</textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check mt-2">
-                                <input type="checkbox" name="is_default" value="1" class="form-check-input" id="edit_is_default_{{ $company->id }}" {{ $company->is_default ? 'checked' : '' }}>
-                                <label class="form-check-label fw-semibold small text-dark" for="edit_is_default_{{ $company->id }}">
-                                    Set as Default Company
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check mt-2">
-                                <input type="checkbox" name="is_active" value="1" class="form-check-input" id="edit_is_active_{{ $company->id }}" {{ $company->is_active ? 'checked' : '' }}>
-                                <label class="form-check-label fw-semibold small text-dark" for="edit_is_active_{{ $company->id }}">
-                                    Active Entity
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="d-flex justify-content-end gap-2 p-3 border-top bg-light">
-                    <button type="button" class="btn btn-light px-4 rounded-3 text-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">Update Company</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@endforeach
 
 @push('scripts')
 <script>

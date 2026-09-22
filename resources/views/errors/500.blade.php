@@ -1,6 +1,6 @@
 @extends('errors.layout')
 
-@section('title', 'Server Error - iTech Inventory')
+@section('title', 'Server Error - Inoodex Inventory')
 @section('code', '500')
 @section('badge', 'Internal Server Error')
 @section('heading', 'Something Went Wrong')
