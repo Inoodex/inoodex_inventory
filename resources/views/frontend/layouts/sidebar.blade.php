@@ -88,7 +88,7 @@
                     </li>
                 @endif
 
-                <!-- 7. Service Management -->
+                {{-- 7. Service Management (Hidden)
                 @if($canView('Service Management'))
                     <li class="menu-title"><span>Services</span></li>
                     <li>
@@ -100,6 +100,7 @@
                         </a>
                     </li>
                 @endif
+                --}}
 
                 <!-- 8. Customer Management -->
                 @if($canView('Customer Management'))
@@ -212,7 +213,7 @@
                     </li>
                 @endif
 
-                <!-- 2. Project & Client Management -->
+                {{-- 2. Project & Client Management (Hidden)
                 @if($canView('Project Management'))
                     <li class="menu-title"><span>Project Management</span></li>
                     <li>
@@ -232,6 +233,7 @@
                         @endif
                     </li>
                 @endif
+                --}}
 
                 <!-- 12. Cost & Company Details -->
                 @if($canView('Cost Management') || $canView('Company Management'))
