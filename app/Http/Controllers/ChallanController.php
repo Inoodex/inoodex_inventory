@@ -7,6 +7,7 @@ use App\Models\ChallanItem;
 use App\Models\CompanyDetail;
 use App\Models\Sale;
 use App\Models\Project;
+use App\Services\ChallanService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -176,139 +177,34 @@ public function index(Request $request)
         return view('challans.show', compact('challan'));
     }
 
-public function preview($id)
+public function preview($id, ChallanService $challanService)
 {
-    $challan = Challan::with([
-        'challanItems',
-        'sale.customer',
-        'project.client'
-    ])->findOrFail($id);
+    $challan = Challan::with(['challanItems', 'sale.customer', 'project.client'])->findOrFail($id);
+    $result = $challanService->renderPdf($challan);
 
-    $recipientName = $challan->recipient_organization;
-    $recipientAddress = $challan->recipient_address;
-    
-    if (!$recipientName) {
-        if ($challan->type === 'sale' && $challan->sale && $challan->sale->customer) {
-            $recipientName = $challan->sale->customer->name;
-        } elseif ($challan->type === 'project' && $challan->project && $challan->project->client) {
-            $recipientName = $challan->project->client->name;
-        }
-    }
-    
-    if (!$recipientAddress) {
-        if ($challan->type === 'sale' && $challan->sale && $challan->sale->customer) {
-            $recipientAddress = $challan->sale->customer->address;
-        } elseif ($challan->type === 'project' && $challan->project && $challan->project->client) {
-            $recipientAddress = $challan->project->client->address;
-        }
-    }
-
-    // Look up signature image from CompanyDetail
-    $signatoryName = $challan->signatory_name ?? 'Engr. Shamsul Alam';
-    $companyDetail = CompanyDetail::where('signatory_name', $signatoryName)->first();
-
-    $pdfData = [
-        'challan' => $challan,
-        'recipient_organization' => $recipientName ?? 'N/A',
-        'recipient_designation' => $challan->recipient_designation ?? 'The Managing Director',
-        'recipient_address' => $recipientAddress ?? 'N/A',
-        'attention_to' => $challan->attention_to ?? '',
-        'subject' => $challan->subject ?? 'Delivery Challan',
-        'show_signature' => $challan->show_signature ?? true,
-        'show_seal' => $challan->show_seal ?? true,
-        'signature_image' => $companyDetail->signature_image ?? null,
-        'seal_image' => $companyDetail->seal_image ?? null,
-    ];
-
-    ini_set('memory_limit', '512M');
-    $html = view('pdf.challan', $pdfData)->render();
-    $mpdf = new \Mpdf\Mpdf([
-        'mode' => 'utf-8',
-        'format' => 'A4',
-        'default_font' => 'Helvetica',
-    ]);
-    $mpdf->WriteHTML($html);
-    $filename = 'challan-' . $challan->id . '.pdf';
-    $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
-    return response($pdfContent, 200, [
+    return response($result['content'], 200, [
         'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="' . $filename . '"',
+        'Content-Disposition' => 'inline; filename="' . $result['filename'] . '"',
     ]);
 }
 
-public function download($id)
+public function download($id, ChallanService $challanService)
 {
-    $challan = Challan::with([
-        'challanItems',
-        'sale.customer',
-        'project.client'
-    ])->findOrFail($id);
+    $challan = Challan::with(['challanItems', 'sale.customer', 'project.client'])->findOrFail($id);
+    $result = $challanService->renderPdf($challan);
 
-    // Use data from database first, fallback to relationships if needed
-    $recipientName = $challan->recipient_organization;
-    $recipientAddress = $challan->recipient_address;
-    
-    // If recipient_organization is not stored, try to get from relationships
-    if (!$recipientName) {
-        if ($challan->type === 'sale' && $challan->sale && $challan->sale->customer) {
-            $recipientName = $challan->sale->customer->name;
-        } elseif ($challan->type === 'project' && $challan->project && $challan->project->client) {
-            $recipientName = $challan->project->client->name;
-        }
-    }
-    
-    // If recipient_address is not stored, try to get from relationships
-    if (!$recipientAddress) {
-        if ($challan->type === 'sale' && $challan->sale && $challan->sale->customer) {
-            $recipientAddress = $challan->sale->customer->address;
-        } elseif ($challan->type === 'project' && $challan->project && $challan->project->client) {
-            $recipientAddress = $challan->project->client->address;
-        }
-    }
-
-    // Look up signature image from CompanyDetail
-    $signatoryName = $challan->signatory_name ?? 'Engr. Shamsul Alam';
-    $companyDetail = CompanyDetail::where('signatory_name', $signatoryName)->first();
-
-    $pdfData = [
-        'challan' => $challan,
-        'recipient_organization' => $recipientName ?? 'N/A',
-        'recipient_designation' => $challan->recipient_designation ?? 'The Managing Director',
-        'recipient_address' => $recipientAddress ?? 'N/A',
-        'attention_to' => $challan->attention_to ?? '',
-        'subject' => $challan->subject ?? 'Delivery Challan',
-        'show_signature' => $challan->show_signature ?? true,
-        'show_seal' => $challan->show_seal ?? true,
-        'signature_image' => $companyDetail->signature_image ?? null,
-        'seal_image' => $companyDetail->seal_image ?? null,
-    ];
-
-    ini_set('memory_limit', '512M');
-    $html = view('pdf.challan', $pdfData)->render();
-    $mpdf = new \Mpdf\Mpdf([
-        'mode' => 'utf-8',
-        'format' => 'A4',
-        'default_font' => 'Helvetica',
-    ]);
-    $mpdf->WriteHTML($html);
-    $fileRecipientName = $recipientName ?? 'client';
-    $recipientSlug = Str::slug($fileRecipientName);
-    $challanDate = $challan->challan_date
-        ? Carbon::parse($challan->challan_date)->format('d-m-Y')
-        : now()->format('d-m-Y');
-    $fileName = $recipientSlug . '-' . $challanDate . '.pdf';
-    $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
-
-    return response($pdfContent, 200, [
+    return response($result['content'], 200, [
         'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+        'Content-Disposition' => 'inline; filename="' . $result['filename'] . '"',
     ]);
 }
-    public function getSales()
+    public function getSales(Request $request)
     {
         try {
+            $limit = min((int)($request->get('limit', 150)), 500);
             $sales = Sale::with(['customer', 'client', 'items.product'])
                 ->latest()
+                ->take($limit)
                 ->get()
                 ->map(function ($sale) {
                     $customerName = $sale->sale_type == 'project' ? ($sale->client->name ?? 'N/A') : ($sale->customer->name ?? 'N/A');

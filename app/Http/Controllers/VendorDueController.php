@@ -75,16 +75,16 @@ class VendorDueController extends Controller
             'notes'          => 'nullable|string|max:255',
         ]);
 
+        $purchase = Purchase::with('vendor', 'product')->findOrFail($request->purchase_id);
+        $paymentAmount = (float) $request->payment_amount;
+
+        if ($paymentAmount > (float) $purchase->due) {
+            return redirect()->back()->with('error', 'Payment amount (৳' . number_format($paymentAmount, 2) . ') cannot exceed the outstanding due amount (৳' . number_format($purchase->due, 2) . ')!');
+        }
+
         DB::beginTransaction();
 
         try {
-            $purchase = Purchase::with('vendor', 'product')->findOrFail($request->purchase_id);
-            $paymentAmount = (float) $request->payment_amount;
-
-            if ($paymentAmount > (float) $purchase->due) {
-                return redirect()->back()->with('error', 'Payment amount (৳' . number_format($paymentAmount, 2) . ') cannot exceed the outstanding due amount (৳' . number_format($purchase->due, 2) . ')!');
-            }
-
             $dueBeforePayment = (float) $purchase->due;
             $newPaid = (float) $purchase->payment + $paymentAmount;
             $newDue = max(0, (float) $purchase->total_price - $newPaid);

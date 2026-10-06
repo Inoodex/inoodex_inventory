@@ -90,18 +90,7 @@ class ReturnController extends Controller
      */
     public function store(StoreReturnRequest $request)
     {
-        $validated = $request->validate([
-            'sale_id' => 'required|exists:sales,id',
-            'return_date' => 'required|date',
-            'reason' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.return_reason' => 'required|in:damaged,wrong_item,customer_changed_mind,defective,expired,other',
-            'items.*.condition' => 'required|in:good,damaged,defective',
-            'items.*.notes' => 'nullable|string'
-        ]);
+        $validated = $request->validated();
 
         DB::beginTransaction();
 

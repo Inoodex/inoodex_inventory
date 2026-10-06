@@ -26,75 +26,129 @@ class PaymentController extends Controller
         return view('frontend.pages.payment.bill_payment', compact('payments','id', 'payment_for', 'bill'));
     }
 
-    public function addPayment(Request $request){
-        if($request->payment_for == '1'){
-            $bill = Service::where('id', $request->id)->first();
+    public function addPayment(Request $request)
+    {
+        $validated = $request->validate([
+            'payment_for'       => 'required|in:1,2',
+            'id'                => 'required|integer',
+            'amount'            => 'required|numeric|min:0.01',
+            'payment_method_id' => 'required|string',
+            'remarks'           => 'nullable|string|max:500',
+        ]);
+
+        $paymentFor = (string)$request->payment_for;
+        $bill = $paymentFor === '1'
+            ? Service::find($request->id)
+            : Sale::find($request->id);
+
+        if (!$bill) {
+            return redirect()->back()->with('error', 'Bill record not found. Please try again.');
         }
-        if($request->payment_for == '2'){
-            $bill = sale::where('id', $request->id)->first();
+
+        $amount = (float)$request->amount;
+        $currentDue = $paymentFor === '1' ? (float)($bill->due_amount ?? 0) : (float)($bill->due_payment ?? 0);
+
+        if ($currentDue > 0 && $amount > $currentDue) {
+            return redirect()->back()->with('error', 'Payment amount cannot exceed the outstanding due of ৳' . number_format($currentDue, 2));
         }
-        if(!$bill) return redirect()->back()->with(['error' => 'Bill not found. Please try again.']);
 
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $bill, $paymentFor, $amount) {
+            $payment = new Payment;
+            $payment->payment_for = (int)$paymentFor;
+            $payment->customer_id = $bill->customer_id ?? 0;
+            $payment->sale_id = $bill->id;
+            $payment->payment_method = $request->payment_method_id;
+            $payment->amount = $amount;
+            $payment->remarks = $request->remarks;
+            $payment->save();
 
+            if ($paymentFor === '1') {
+                $bill->paid_amount = (float)($bill->paid_amount ?? 0) + $amount;
+                $bill->due_amount = max(0, (float)($bill->bill ?? 0) - $bill->paid_amount);
+                $bill->save();
+            } else {
+                $bill->advanced_payment = (float)($bill->advanced_payment ?? 0) + $amount;
+                $bill->due_payment = max(0, (float)($bill->payble ?? 0) - $bill->advanced_payment);
+                $bill->save();
+            }
+        });
 
-        $payment = new Payment;
-        $payment->payment_for = $request->payment_for;
-        $payment->customer_id = $bill->customer_id;
-        $payment->sale_id = $bill->id;
-        $payment->payment_method = $request->payment_method_id;
-        $payment->amount = $request->amount;
-        $payment->remarks = $request->remarks;
-        $payment->save();
-
-        $bill->paid_amount += $request->amount;
-        $bill->due_amount = max(0,$bill->bill-$bill->paid_amount);
-        $bill->update();
-
-        return redirect()->back()->with(['success' => 'Payment added successfully.']);
+        return redirect()->back()->with('success', 'Payment added successfully.');
     }
 
-    public function updatePayment(Request $request, $id){
-        $payment = Payment::where('id',$id)->first();
-        if(!$payment) return redirect()->back()->with(['error' => 'Payment not found. Please try again.']);
-        if($payment->payment_for == '1'){
-            $bill = Service::where('id', $payment->sale_id)->first();
+    public function updatePayment(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'amount'            => 'required|numeric|min:0.01',
+            'payment_method_id' => 'required|string',
+            'remarks'           => 'nullable|string|max:500',
+        ]);
+
+        $payment = Payment::find($id);
+        if (!$payment) {
+            return redirect()->back()->with('error', 'Payment record not found.');
         }
-        if($payment->payment_for == '2'){
-            $bill = Sale::where('id', $payment->sale_id)->first();
+
+        $paymentFor = (string)$payment->payment_for;
+        $bill = $paymentFor === '1'
+            ? Service::find($payment->sale_id)
+            : Sale::find($payment->sale_id);
+
+        if (!$bill) {
+            return redirect()->back()->with('error', 'Linked bill record not found.');
         }
-        if(!$bill) return redirect()->back()->with(['error' => 'Bill not found. Please try again.']);
 
-        $bill->paid_amount = max(0,$bill->paid_amount - $payment->amount);
-        $bill->paid_amount += $request->amount;
-        $bill->due_amount = max(0,$bill->bill - $bill->paid_amount);
-        $bill->update();
+        $newAmount = (float)$request->amount;
+        $oldAmount = (float)$payment->amount;
 
-        $payment->payment_method = $request->payment_method_id;
-        $payment->amount = $request->amount;
-        $payment->remarks = $request->remarks;
-        $payment->update();
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $payment, $bill, $paymentFor, $newAmount, $oldAmount) {
+            if ($paymentFor === '1') {
+                $bill->paid_amount = max(0, (float)($bill->paid_amount ?? 0) - $oldAmount + $newAmount);
+                $bill->due_amount = max(0, (float)($bill->bill ?? 0) - $bill->paid_amount);
+                $bill->save();
+            } else {
+                $bill->advanced_payment = max(0, (float)($bill->advanced_payment ?? 0) - $oldAmount + $newAmount);
+                $bill->due_payment = max(0, (float)($bill->payble ?? 0) - $bill->advanced_payment);
+                $bill->save();
+            }
 
-        return redirect()->back()->with(['success' => 'Payment updated successfully.']);
+            $payment->payment_method = $request->payment_method_id;
+            $payment->amount = $newAmount;
+            $payment->remarks = $request->remarks;
+            $payment->save();
+        });
 
+        return redirect()->back()->with('success', 'Payment updated successfully.');
     }
-    public function deletePayment(Request $request, $id){
-        $payment = Payment::where('id',$id)->first();
-        if(!$payment) return redirect()->back()->with(['error' => 'Payment not found. Please try again.']);
-        if($payment->payment_for == '1'){
-            $bill = Service::where('id', $payment->sale_id)->first();
+
+    public function deletePayment(Request $request, $id)
+    {
+        $payment = Payment::find($id);
+        if (!$payment) {
+            return redirect()->back()->with('error', 'Payment record not found.');
         }
-        if($payment->payment_for == '2'){
-            $bill = Sale::where('id', $payment->sale_id)->first();
-        }
-        if(!$bill) return redirect()->back()->with(['error' => 'Bill not found. Please try again.']);
 
-        $bill->paid_amount = max(0,$bill->paid_amount - $payment->amount);
-        $bill->due_amount = max(0,$bill->bill - $bill->paid_amount);
-        $bill->update();
+        $paymentFor = (string)$payment->payment_for;
+        $bill = $paymentFor === '1'
+            ? Service::find($payment->sale_id)
+            : Sale::find($payment->sale_id);
 
-        $payment->delete();
+        \Illuminate\Support\Facades\DB::transaction(function () use ($payment, $bill, $paymentFor) {
+            if ($bill) {
+                if ($paymentFor === '1') {
+                    $bill->paid_amount = max(0, (float)($bill->paid_amount ?? 0) - (float)$payment->amount);
+                    $bill->due_amount = max(0, (float)($bill->bill ?? 0) - $bill->paid_amount);
+                    $bill->save();
+                } else {
+                    $bill->advanced_payment = max(0, (float)($bill->advanced_payment ?? 0) - (float)$payment->amount);
+                    $bill->due_payment = max(0, (float)($bill->payble ?? 0) - $bill->advanced_payment);
+                    $bill->save();
+                }
+            }
 
-        return redirect()->back()->with(['success' => 'Payment deleted successfully.']);
+            $payment->delete();
+        });
 
+        return redirect()->back()->with('success', 'Payment deleted successfully.');
     }
 }

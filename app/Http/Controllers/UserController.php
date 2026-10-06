@@ -85,64 +85,69 @@ class UserController extends Controller
     // }
 
     public function store(Request $request)
-{
-    $rules = [
-        'user_role' => 'required',
-        'name' => 'required|string',
-        'email' => 'required|email|unique:users,email',
-        'phone' => 'unique:users,phone',
-        'password' => 'required|string|min:6',
-        'status' => 'required|in:0,1',
-    ];
+    {
+        $rules = [
+            'user_role' => 'required|exists:roles,id',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:20|unique:users,phone',
+            'password' => 'required|string|min:6',
+            'status' => 'required|in:0,1',
+            'images' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ];
 
-    $validatedData = $request->validate($rules);
+        $validatedData = $request->validate($rules);
 
-    $imageName = "";
-    if ($request->hasFile('images')) {
-        $image = $request->file('images');
-        $destinationPath = public_path('frontend/users/');
-        $imageName = now()->format('YmdHis') . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-        $image->move($destinationPath, $imageName);
-    }
+        $imageName = "";
+        if ($request->hasFile('images')) {
+            $image = $request->file('images');
+            $destinationPath = public_path('frontend/users/');
+            $ext = strtolower($image->getClientOriginalExtension());
+            $allowedExts = ['jpeg', 'jpg', 'png', 'webp'];
+            if (in_array($ext, $allowedExts)) {
+                $imageName = now()->format('YmdHis') . '_' . Str::random(10) . '.' . $ext;
+                $image->move($destinationPath, $imageName);
+            }
+        }
 
-    // Create User
-    $user = new User();
-    $user->type = '1';
-    $user->role_id = $validatedData['user_role'];
-    $user->name = $validatedData['name'];
-    $user->email = $validatedData['email'];
-    $user->phone = $validatedData['phone'];
-    $user->password = bcrypt($validatedData['password']);
-    $user->images = $imageName;
-    $user->status = $validatedData['status'];
-    $user->save();
+        // Create User
+        $user = new User();
+        $user->type = '1';
+        $user->role_id = $validatedData['user_role'];
+        $user->name = $validatedData['name'];
+        $user->email = $validatedData['email'];
+        $user->phone = $validatedData['phone'];
+        $user->password = bcrypt($validatedData['password']);
+        $user->images = $imageName;
+        $user->status = $validatedData['status'];
+        $user->save();
 
-    // Assign Role
-    $role = Role::find($validatedData['user_role']);
-    if ($role) {
-        $user->assignRole($role);
-    }
+        // Assign Role
+        $role = Role::find($validatedData['user_role']);
+        if ($role) {
+            $user->assignRole($role);
+        }
 
-    // Create Employee record automatically if role is employee
-    if ($role && $role->name === 'Employee') {
-        Employee::create([
-            'user_id' => $user->id,
-            'employee_id' => 'EMP' . str_pad($user->id, 4, '0', STR_PAD_LEFT), // Example: EMP0001
-            'name' => $user->name,
-            'email' => $user->email,
-            'phone' => $user->phone,
-            'status' => $user->status ? 'active' : 'inactive',
+        // Create Employee record automatically if role is employee
+        if ($role && $role->name === 'Employee') {
+            Employee::create([
+                'user_id' => $user->id,
+                'employee_id' => 'EMP' . str_pad($user->id, 4, '0', STR_PAD_LEFT), // Example: EMP0001
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'status' => $user->status ? 'active' : 'inactive',
+            ]);
+        }
+
+        session()->flash('sweet_alert', [
+            'type' => 'success',
+            'title' => 'Success!',
+            'text' => 'User and employee record added successfully.',
         ]);
+
+        return redirect()->route('users.index')->with('success', 'User created successfully');
     }
-
-    session()->flash('sweet_alert', [
-        'type' => 'success',
-        'title' => 'Success!',
-        'text' => 'User and employee record added successfully.',
-    ]);
-
-    return redirect()->route('users.index')->with('success', 'User created successfully');
-}
 
 
     /**
@@ -167,27 +172,35 @@ class UserController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, $id)
-{
-    $user = User::findOrFail($id);
+    {
+        $user = User::findOrFail($id);
 
-    $rules = [
-        'user_role' => 'required',
-        'name' => 'required|string',
-        'email' => 'required|email|unique:users,email,' . $user->id,
-        'phone' => 'nullable|unique:users,phone,' . $user->id,
-        'password' => 'nullable|string|min:6',
-        'status' => 'required|in:0,1',
-    ];
+        $rules = [
+            'user_role' => 'required|exists:roles,id',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20|unique:users,phone,' . $user->id,
+            'password' => 'nullable|string|min:6',
+            'status' => 'required|in:0,1',
+            'images' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ];
 
-    $validatedData = $request->validate($rules);
+        $validatedData = $request->validate($rules);
 
-    if ($request->hasFile('images')) {
-        $image = $request->file('images');
-        $destinationPath = public_path('frontend/users/');
-        $imageName = now()->format('YmdHis') . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
-        $image->move($destinationPath, $imageName);
-        $user->images = $imageName;
-    }
+        if ($request->hasFile('images')) {
+            $image = $request->file('images');
+            $destinationPath = public_path('frontend/users/');
+            $ext = strtolower($image->getClientOriginalExtension());
+            $allowedExts = ['jpeg', 'jpg', 'png', 'webp'];
+            if (in_array($ext, $allowedExts)) {
+                if (!empty($user->images) && file_exists($destinationPath . $user->images)) {
+                    @unlink($destinationPath . $user->images);
+                }
+                $imageName = now()->format('YmdHis') . '_' . Str::random(10) . '.' . $ext;
+                $image->move($destinationPath, $imageName);
+                $user->images = $imageName;
+            }
+        }
 
     $user->name = $validatedData['name'];
     $user->email = $validatedData['email'];
@@ -262,13 +275,18 @@ class UserController extends Controller
 
     public function pinStore(Request $request)
     {
-        $inputs = $request->all();
-
-        foreach ($inputs as $key => $input) {
-            if (Extra::where('name', $key)->exists()) {  // Avoid unnecessary queries
-                Extra::where('name', $key)->update(['value' => $input]);
-            }
+        $validKeys = Extra::where('status', '1')->pluck('name')->toArray();
+        $rules = [];
+        foreach ($validKeys as $key) {
+            $rules[$key] = 'nullable|string|max:50';
         }
-        return redirect()->back();
+
+        $validated = $request->validate($rules);
+
+        foreach ($validated as $key => $value) {
+            Extra::where('name', $key)->update(['value' => $value]);
+        }
+
+        return redirect()->back()->with('success', 'PIN settings updated successfully.');
     }
 }

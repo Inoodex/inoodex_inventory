@@ -84,7 +84,6 @@
                             <option value="expense" {{ $refType === 'expense' ? 'selected' : '' }}>Daily Expense</option>
                             <option value="salary" {{ $refType === 'salary' ? 'selected' : '' }}>Salary</option>
                             <option value="return" {{ $refType === 'return' ? 'selected' : '' }}>Return</option>
-                            <option value="contra" {{ $refType === 'contra' ? 'selected' : '' }}>Contra Transfer</option>
                             <option value="manual" {{ $refType === 'manual' ? 'selected' : '' }}>Manual Voucher</option>
                         </select>
                     </div>

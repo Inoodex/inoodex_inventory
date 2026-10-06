@@ -113,4 +113,44 @@ class ChartOfAccount extends Model
             return $opening + ($totalCredit - $totalDebit);
         }
     }
+
+    /**
+     * Batch calculate running balances for multiple accounts in a single SQL query.
+     * Returns an associative array: [ account_id => (float) balance ]
+     */
+    public static function getBatchBalances(?string $asOfDate = null, $accounts = null): array
+    {
+        $accountsCollection = $accounts instanceof \Illuminate\Support\Collection 
+            ? $accounts 
+            : ($accounts === null ? self::active()->get() : self::whereIn('id', (array)$accounts)->get());
+
+        $query = \Illuminate\Support\Facades\DB::table('journal_entry_items')
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_entry_items.journal_entry_id')
+            ->whereIn('journal_entries.status', ['posted', 'approved']);
+
+        if ($asOfDate) {
+            $query->where('journal_entries.entry_date', '<=', $asOfDate);
+        }
+
+        $totals = $query->selectRaw('journal_entry_items.account_id, SUM(journal_entry_items.debit) as total_debit, SUM(journal_entry_items.credit) as total_credit')
+            ->groupBy('journal_entry_items.account_id')
+            ->get()
+            ->keyBy('account_id');
+
+        $balances = [];
+        foreach ($accountsCollection as $acc) {
+            $row = $totals->get($acc->id);
+            $totalDebit = $row ? (float)$row->total_debit : 0.00;
+            $totalCredit = $row ? (float)$row->total_credit : 0.00;
+            $opening = (float)$acc->opening_balance;
+
+            if ($acc->isDebitNormal()) {
+                $balances[$acc->id] = $opening + ($totalDebit - $totalCredit);
+            } else {
+                $balances[$acc->id] = $opening + ($totalCredit - $totalDebit);
+            }
+        }
+
+        return $balances;
+    }
 }

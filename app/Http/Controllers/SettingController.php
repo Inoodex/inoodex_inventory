@@ -33,15 +33,15 @@ class SettingController extends Controller
             'currency_code'    => 'nullable|string|max:10',
             'date_format'      => 'nullable|string|max:20',
             'timezone'         => 'nullable|string|max:50',
-            'site_logo'        => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:2048',
-            'site_logo_white'  => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:2048',
-            'login_logo'       => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:2048',
-            'favicon'          => 'nullable|mimes:jpeg,png,jpg,webp,svg,ico|max:1024',
+            'site_logo'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'site_logo_white'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'login_logo'       => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'favicon'          => 'nullable|mimes:jpeg,png,jpg,webp,ico|max:1024',
         ]);
 
         $uploadPath = public_path('uploads/settings');
         if (!File::isDirectory($uploadPath)) {
-            File::makeDirectory($uploadPath, 0777, true, true);
+            File::makeDirectory($uploadPath, 0755, true, true);
         }
 
         // 1. Process Media Uploads

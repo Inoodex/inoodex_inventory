@@ -14,7 +14,7 @@ use App\Http\Controllers\{
     ChartOfAccountController, JournalEntryController, LedgerController,
     TrialBalanceController, FinancialStatementController,
     FiscalYearController, VendorDueController, SettingController,
-    ContraEntryController, ReconciliationController
+    ReconciliationController
 };
 
 use Illuminate\Support\Facades\{Auth, Route};
@@ -224,7 +224,6 @@ Route::middleware(['auth', 'permission:Payment Management|Sales Management|Accou
 // =========================================================================
 Route::middleware(['auth', 'permission:Employee Management|Accounts Management'])->group(function () {
     Route::resource('employees', EmployeeController::class);
-    Route::get('employees/{id}', [EmployeeController::class, 'show'])->name('employees.view');
     Route::resource('ta-da', TaDaController::class);
     Route::resource('salary', SalaryController::class);
     Route::resource('daily-expenses', ExpenseController::class)->names('dailyExpenses');
@@ -294,9 +293,6 @@ Route::middleware(['auth', 'permission:Accounts Management'])->group(function ()
         Route::post('fiscal-years', [FiscalYearController::class, 'store'])->name('fiscal-years.store');
         Route::post('fiscal-years/{fiscalYear}/set-active', [FiscalYearController::class, 'setActive'])->name('fiscal-years.set-active');
         Route::post('fiscal-years/{fiscalYear}/close', [FiscalYearController::class, 'closeYear'])->name('fiscal-years.close');
-
-        // Contra Entries (Transfers between Cash & Bank)
-        Route::resource('contra-entries', ContraEntryController::class)->only(['index', 'create', 'store', 'show']);
 
         // Bank Reconciliation
         Route::get('reconciliation', [ReconciliationController::class, 'index'])->name('reconciliation.index');

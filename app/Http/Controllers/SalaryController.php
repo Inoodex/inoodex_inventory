@@ -51,7 +51,17 @@ class SalaryController extends Controller
         $netSalary = max(0, $basic + $allowance - $deduction - $advance);
 
         DB::transaction(function () use ($request, $netSalary) {
-            $data = $request->all();
+            $data = $request->only([
+                'employee_id',
+                'month',
+                'basic_salary',
+                'advance',
+                'allowance',
+                'deduction',
+                'payment_status',
+                'payment_date',
+                'note',
+            ]);
             $data['user_id'] = Auth::id() ?? 1;
             $data['date'] = $request->payment_date ?: date('Y-m-d');
             $data['amount'] = $netSalary;
@@ -101,7 +111,17 @@ class SalaryController extends Controller
             // Reverse any prior payroll voucher
             $this->reverseSalaryJournal($salary->id);
 
-            $data = $request->all();
+            $data = $request->only([
+                'employee_id',
+                'month',
+                'basic_salary',
+                'advance',
+                'allowance',
+                'deduction',
+                'payment_status',
+                'payment_date',
+                'note',
+            ]);
             $data['amount'] = $netSalary;
             $data['date'] = $request->payment_date ?: ($salary->date ?? date('Y-m-d'));
             $data['status'] = $request->payment_status === 'paid' ? '1' : '0';

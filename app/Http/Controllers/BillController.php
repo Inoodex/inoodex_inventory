@@ -54,11 +54,13 @@ public function create()
     return view('frontend.pages.bills.create', compact('bankDetails', 'companyDetails'));
 }
 
-    public function getSales()
+    public function getSales(Request $request)
     {
         try {
+            $limit = min((int)($request->get('limit', 150)), 500);
             $sales = Sale::with(['customer', 'client', 'items.product'])
                 ->latest()
+                ->take($limit)
                 ->get()
                 ->map(function ($sale) {
                     $customerName = $sale->sale_type == 'project' ? ($sale->client->name ?? 'N/A') : ($sale->customer->name ?? 'N/A');

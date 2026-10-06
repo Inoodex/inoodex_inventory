@@ -16,56 +16,45 @@ class EmployeeTaDaController extends Controller
     // }
 
     public function index()
-{
-    $employee = auth()->user()->employee;
-    $tadas = TaDa::where('employee_id', $employee->id)->get();
+    {
+        $employee = auth()->user()->employee;
+        if (!$employee) {
+            return redirect()->route('index')->with('error', 'No employee profile linked to your user account.');
+        }
 
-    return view('frontend.pages.employees.ta_da.index', compact('tadas'));
-}
+        $tadas = TaDa::where('employee_id', $employee->id)->latest('date')->get();
 
-public function edit($id)
-{
-    $tadas = TaDa::where('id', $id)
-              ->where('employee_id', auth()->user()->employee->id)
-              ->firstOrFail();
-
-    return view('frontend.pages.employees.ta_da.edit', compact('tadas'));
-}
-
-public function update(Request $request, $id)
-{
-    $request->validate([
-        'used_amount' => 'required|numeric|min:0|max:' . TaDa::findOrFail($id)->amount,
-    ]);
-
-    $tadas = TaDa::findOrFail($id);
-    $tadas->used_amount = $request->used_amount;
-    $tadas->remaining_amount = $tadas->amount - $tadas->used_amount;
-    $tadas->save();
-
-    return redirect()->route('employee.tada.index')->with('success', 'Amount submitted successfully.');
-}
-
+        return view('frontend.pages.employees.ta_da.index', compact('tadas'));
+    }
 
     public function create()
     {
-        
+        $employee = auth()->user()->employee;
+        if (!$employee) {
+            return redirect()->route('index')->with('error', 'No employee profile linked to your user account.');
+        }
+
         return view('frontend.pages.employees.ta_da.create');
     }
 
- public function store(Request $request)
+    public function store(Request $request)
     {
+        $employee = auth()->user()->employee;
+        if (!$employee) {
+            return redirect()->route('index')->with('error', 'No employee profile linked to your user account.');
+        }
+
         $request->validate([
             'date' => 'required|date',
-            'amount' => 'required|numeric',
+            'amount' => 'required|numeric|min:0.01',
             'type' => 'required|in:TA,DA',
             'payment_type' => 'required|in:Advance,Claim',
-            'purpose' => 'nullable|string',
+            'purpose' => 'nullable|string|max:1000',
         ]);
 
         TaDa::create([
             'user_id' => Auth::id(),
-            'employee_id' => Auth::user()->employee->id,            
+            'employee_id' => $employee->id,
             'date' => $request->date,
             'amount' => $request->amount,
             'type' => $request->type,
@@ -73,25 +62,42 @@ public function update(Request $request, $id)
             'purpose' => $request->purpose,
         ]);
 
-        return redirect()->route('employee.tada.index')->with('success', 'TA/DA request submitted.');
+        return redirect()->route('employee.tada.index')->with('success', 'TA/DA request submitted successfully.');
     }
 
-// public function update(Request $request, $id)
-// {
-//     $tada = TaDa::findOrFail($id);
+    public function edit($id)
+    {
+        $employee = auth()->user()->employee;
+        if (!$employee) {
+            return redirect()->route('index')->with('error', 'No employee profile linked to your user account.');
+        }
 
-//     $request->validate([
-//         'actual_amount' => 'required|numeric|min:0',
-//     ]);
+        $tadas = TaDa::where('id', $id)
+            ->where('employee_id', $employee->id)
+            ->firstOrFail();
 
-//     $difference = $tada->approved_amount - $request->actual_amount;
+        return view('frontend.pages.employees.ta_da.edit', compact('tadas'));
+    }
 
-//     $tada->update([
-//         'actual_amount' => $request->actual_amount,
-//         'difference' => $difference,
-//         'status' => 'submitted',
-//     ]);
-//     return redirect()->route('employee.tada.index')->with('success', 'TA/DA submitted successfully!');
-// }
+    public function update(Request $request, $id)
+    {
+        $employee = auth()->user()->employee;
+        if (!$employee) {
+            return redirect()->route('index')->with('error', 'No employee profile linked to your user account.');
+        }
 
+        $tadas = TaDa::where('id', $id)
+            ->where('employee_id', $employee->id)
+            ->firstOrFail();
+
+        $request->validate([
+            'used_amount' => 'required|numeric|min:0|max:' . $tadas->amount,
+        ]);
+
+        $tadas->used_amount = $request->used_amount;
+        $tadas->remaining_amount = max(0, $tadas->amount - $tadas->used_amount);
+        $tadas->save();
+
+        return redirect()->route('employee.tada.index')->with('success', 'Amount submitted successfully.');
+    }
 }

@@ -23,11 +23,20 @@ class FinancialStatementController extends Controller
             ->orderBy('account_code')
             ->get();
 
+        // Expenses (Class 5000)
+        $expenseAccounts = ChartOfAccount::active()
+            ->byType('expense')
+            ->whereNotNull('parent_id')
+            ->orderBy('account_code')
+            ->get();
+
+        $allAccounts = $revenueAccounts->concat($expenseAccounts);
+        $balances = ChartOfAccount::getBatchBalances($toDate, $allAccounts);
+
         $revenueData = [];
         $totalRevenue = 0.00;
-
         foreach ($revenueAccounts as $account) {
-            $amount = $account->calculateBalance($toDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $revenueData[] = [
                     'account' => $account,
@@ -37,18 +46,10 @@ class FinancialStatementController extends Controller
             }
         }
 
-        // Expenses (Class 5000)
-        $expenseAccounts = ChartOfAccount::active()
-            ->byType('expense')
-            ->whereNotNull('parent_id')
-            ->orderBy('account_code')
-            ->get();
-
         $expenseData = [];
         $totalExpense = 0.00;
-
         foreach ($expenseAccounts as $account) {
-            $amount = $account->calculateBalance($toDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $expenseData[] = [
                     'account' => $account,
@@ -76,22 +77,26 @@ class FinancialStatementController extends Controller
         $fromDate = $request->query('from_date', date('Y-01-01'));
         $toDate = $request->query('to_date', date('Y-m-d'));
 
-        $revenueAccounts = ChartOfAccount::active()->byType('revenue')->whereNotNull('parent_id')->get();
+        $revenueAccounts = ChartOfAccount::active()->byType('revenue')->whereNotNull('parent_id')->orderBy('account_code')->get();
+        $expenseAccounts = ChartOfAccount::active()->byType('expense')->whereNotNull('parent_id')->orderBy('account_code')->get();
+
+        $allAccounts = $revenueAccounts->concat($expenseAccounts);
+        $balances = ChartOfAccount::getBatchBalances($toDate, $allAccounts);
+
         $revenueData = [];
         $totalRevenue = 0.00;
         foreach ($revenueAccounts as $account) {
-            $amount = $account->calculateBalance($toDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $revenueData[] = ['account' => $account, 'amount' => $amount];
                 $totalRevenue += $amount;
             }
         }
 
-        $expenseAccounts = ChartOfAccount::active()->byType('expense')->whereNotNull('parent_id')->get();
         $expenseData = [];
         $totalExpense = 0.00;
         foreach ($expenseAccounts as $account) {
-            $amount = $account->calculateBalance($toDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $expenseData[] = ['account' => $account, 'amount' => $amount];
                 $totalExpense += $amount;
@@ -141,36 +146,44 @@ class FinancialStatementController extends Controller
     {
         $asOfDate = $request->query('as_of_date', date('Y-m-d'));
 
-        // Assets (1000)
-        $assetAccounts = ChartOfAccount::active()->byType('asset')->whereNotNull('parent_id')->get();
+        // Load all active sub-accounts
+        $assetAccounts = ChartOfAccount::active()->byType('asset')->whereNotNull('parent_id')->orderBy('account_code')->get();
+        $liabilityAccounts = ChartOfAccount::active()->byType('liability')->whereNotNull('parent_id')->orderBy('account_code')->get();
+        $equityAccounts = ChartOfAccount::active()->byType('equity')->whereNotNull('parent_id')->orderBy('account_code')->get();
+        $revenueAccounts = ChartOfAccount::active()->byType('revenue')->whereNotNull('parent_id')->get();
+        $expenseAccounts = ChartOfAccount::active()->byType('expense')->whereNotNull('parent_id')->get();
+
+        $allAccounts = $assetAccounts->concat($liabilityAccounts)
+            ->concat($equityAccounts)
+            ->concat($revenueAccounts)
+            ->concat($expenseAccounts);
+
+        $balances = ChartOfAccount::getBatchBalances($asOfDate, $allAccounts);
+
         $assetData = [];
         $totalAssets = 0.00;
         foreach ($assetAccounts as $account) {
-            $amount = $account->calculateBalance($asOfDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $assetData[] = ['account' => $account, 'amount' => $amount];
                 $totalAssets += $amount;
             }
         }
 
-        // Liabilities (2000)
-        $liabilityAccounts = ChartOfAccount::active()->byType('liability')->whereNotNull('parent_id')->get();
         $liabilityData = [];
         $totalLiabilities = 0.00;
         foreach ($liabilityAccounts as $account) {
-            $amount = $account->calculateBalance($asOfDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $liabilityData[] = ['account' => $account, 'amount' => $amount];
                 $totalLiabilities += $amount;
             }
         }
 
-        // Equity (3000)
-        $equityAccounts = ChartOfAccount::active()->byType('equity')->whereNotNull('parent_id')->get();
         $equityData = [];
         $totalEquity = 0.00;
         foreach ($equityAccounts as $account) {
-            $amount = $account->calculateBalance($asOfDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $equityData[] = ['account' => $account, 'amount' => $amount];
                 $totalEquity += $amount;
@@ -179,12 +192,12 @@ class FinancialStatementController extends Controller
 
         // Net Earnings from Revenue - Expense for period
         $revTotal = 0.00;
-        foreach (ChartOfAccount::active()->byType('revenue')->whereNotNull('parent_id')->get() as $a) {
-            $revTotal += $a->calculateBalance($asOfDate);
+        foreach ($revenueAccounts as $a) {
+            $revTotal += $balances[$a->id] ?? 0.0;
         }
         $expTotal = 0.00;
-        foreach (ChartOfAccount::active()->byType('expense')->whereNotNull('parent_id')->get() as $a) {
-            $expTotal += $a->calculateBalance($asOfDate);
+        foreach ($expenseAccounts as $a) {
+            $expTotal += $balances[$a->id] ?? 0.0;
         }
         $currentEarnings = $revTotal - $expTotal;
 
@@ -211,33 +224,43 @@ class FinancialStatementController extends Controller
     {
         $asOfDate = $request->query('as_of_date', date('Y-m-d'));
 
-        $assetAccounts = ChartOfAccount::active()->byType('asset')->whereNotNull('parent_id')->get();
+        $assetAccounts = ChartOfAccount::active()->byType('asset')->whereNotNull('parent_id')->orderBy('account_code')->get();
+        $liabilityAccounts = ChartOfAccount::active()->byType('liability')->whereNotNull('parent_id')->orderBy('account_code')->get();
+        $equityAccounts = ChartOfAccount::active()->byType('equity')->whereNotNull('parent_id')->orderBy('account_code')->get();
+        $revenueAccounts = ChartOfAccount::active()->byType('revenue')->whereNotNull('parent_id')->get();
+        $expenseAccounts = ChartOfAccount::active()->byType('expense')->whereNotNull('parent_id')->get();
+
+        $allAccounts = $assetAccounts->concat($liabilityAccounts)
+            ->concat($equityAccounts)
+            ->concat($revenueAccounts)
+            ->concat($expenseAccounts);
+
+        $balances = ChartOfAccount::getBatchBalances($asOfDate, $allAccounts);
+
         $assetData = [];
         $totalAssets = 0.00;
         foreach ($assetAccounts as $account) {
-            $amount = $account->calculateBalance($asOfDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $assetData[] = ['account' => $account, 'amount' => $amount];
                 $totalAssets += $amount;
             }
         }
 
-        $liabilityAccounts = ChartOfAccount::active()->byType('liability')->whereNotNull('parent_id')->get();
         $liabilityData = [];
         $totalLiabilities = 0.00;
         foreach ($liabilityAccounts as $account) {
-            $amount = $account->calculateBalance($asOfDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $liabilityData[] = ['account' => $account, 'amount' => $amount];
                 $totalLiabilities += $amount;
             }
         }
 
-        $equityAccounts = ChartOfAccount::active()->byType('equity')->whereNotNull('parent_id')->get();
         $equityData = [];
         $totalEquity = 0.00;
         foreach ($equityAccounts as $account) {
-            $amount = $account->calculateBalance($asOfDate);
+            $amount = $balances[$account->id] ?? 0.0;
             if (abs($amount) > 0.001) {
                 $equityData[] = ['account' => $account, 'amount' => $amount];
                 $totalEquity += $amount;
@@ -245,12 +268,12 @@ class FinancialStatementController extends Controller
         }
 
         $revTotal = 0.00;
-        foreach (ChartOfAccount::active()->byType('revenue')->whereNotNull('parent_id')->get() as $a) {
-            $revTotal += $a->calculateBalance($asOfDate);
+        foreach ($revenueAccounts as $a) {
+            $revTotal += $balances[$a->id] ?? 0.0;
         }
         $expTotal = 0.00;
-        foreach (ChartOfAccount::active()->byType('expense')->whereNotNull('parent_id')->get() as $a) {
-            $expTotal += $a->calculateBalance($asOfDate);
+        foreach ($expenseAccounts as $a) {
+            $expTotal += $balances[$a->id] ?? 0.0;
         }
         $currentEarnings = $revTotal - $expTotal;
         $totalEquityWithEarnings = $totalEquity + $currentEarnings;

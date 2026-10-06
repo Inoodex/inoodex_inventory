@@ -137,7 +137,7 @@ class ProductReturn extends Model
         Payment::create([
             'sale_id' => $this->sale_id,
             'customer_id' => $this->customer_id,
-            'payment_for' => 3, // 3 = refund
+            'payment_for' => Payment::FOR_REFUND,
             'payment_method' => 'cash',
             'amount' => -$this->total_refund_amount, // Negative amount for refund
             'remarks' => "Refund for Return #{$this->id}",

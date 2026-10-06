@@ -15,7 +15,7 @@
 **Inoodex Inventory** is an enterprise-grade, multi-module Business ERP & Inventory Management System built on **Laravel 10**. Designed as a full-stack monolithic application with high cohesion and low coupling, it provides end-to-end management for wholesale, retail, workshop/service, and project-based enterprises.
 
 ### Core Capabilities:
-- **Double-Entry Accounting Engine**: 5-Class Chart of Accounts (GAAP/IFRS compliant), multi-row split Journal Vouchers with live equilibrium validation, General Ledger, Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, Contra Transfers, Bank Reconciliation, and Fiscal Year Closing.
+- **Double-Entry Accounting Engine**: 5-Class Chart of Accounts (GAAP/IFRS compliant), multi-row split Journal Vouchers with live equilibrium validation, General Ledger, Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, Bank Reconciliation, and Fiscal Year Closing.
 - **Dynamic Letterhead & Background Pad Engine**: Per-company customizable invoice letterhead (`pad_image`) and report background (`report_bg_image`) with independent ON/OFF toggles for pre-printed stationary and vector PDF export via `carlos-meneses/laravel-mpdf`.
 - **Inventory & Serial Number Tracking**: Serialized & bulk product tracking, barcode generation, multi-tier categories & brands, automated stock deduction and incrementing.
 - **Sales, Procurement & Commercial Documents**: Complete lifecycle from Quotation $\rightarrow$ Sales Order $\rightarrow$ Delivery Challan $\rightarrow$ Invoice $\rightarrow$ Due Payment Collection; Purchases with Vendor management; and Project Billing.
@@ -128,7 +128,6 @@ A GAAP/IFRS-compliant double-entry accounting engine fully integrated with opera
 | `FiscalYear` | `fiscal_years` | Financial accounting periods with start/end dates, active status flag, and year-end closing locks. |
 | `JournalEntry` | `journal_entries` | Immutable voucher headers with auto-sequencing `JV-YYYYMMDD-0001`, audit metadata, and Storno reversal foreign keys. |
 | `JournalEntryItem` | `journal_entry_items` | Split debit and credit transaction lines with individual account allocations. |
-| `ContraEntry` | `contra_entries` | Internal liquid fund transfers (Cash-to-Bank, Bank-to-Bank) with auto `CN-YYYYMMDD-0001` sequencing. |
 | `AccountReconciliation` | `account_reconciliations` | Bank statement balance verification and variance tracking against General Ledger book balances. |
 
 #### Financial Statements & Reports:
@@ -393,7 +392,7 @@ public function run(): void
 | Route Prefix / Group | Primary Controllers | Key Functionalities |
 |----------------------|---------------------|---------------------|
 | `/` | `FrontendController` | Main administrative dashboard & analytics |
-| `accounts/*` | `ChartOfAccountController`, `JournalEntryController`, `LedgerController`, `TrialBalanceController`, `FinancialStatementController`, `ContraEntryController`, `ReconciliationController`, `FiscalYearController` | Full Double-Entry Accounting module (32 routes) |
+| `accounts/*` | `ChartOfAccountController`, `JournalEntryController`, `LedgerController`, `TrialBalanceController`, `FinancialStatementController`, `ReconciliationController`, `FiscalYearController` | Full Double-Entry Accounting module |
 | `sales/*` | `SalesController` | Sales orders, invoice generation, due payment processing, reports |
 | `purchase/*` | `PurchaseController` | Procurement entries, latest purchase price queries, purchase reports |
 | `inventory/*` | `InventoryController`, `ProductSerialController` | Stock monitoring, serial lookups, PDF inventory list |

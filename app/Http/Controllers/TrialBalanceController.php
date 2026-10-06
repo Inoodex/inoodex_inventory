@@ -16,12 +16,14 @@ class TrialBalanceController extends Controller
             ->orderBy('account_code')
             ->get();
 
+        $balances = ChartOfAccount::getBatchBalances($asOfDate, $accounts);
+
         $rows = [];
         $totalDebit = 0.00;
         $totalCredit = 0.00;
 
         foreach ($accounts as $account) {
-            $balance = $account->calculateBalance($asOfDate);
+            $balance = $balances[$account->id] ?? 0.0;
 
             if (abs($balance) > 0.001) {
                 if ($account->isDebitNormal()) {
@@ -59,13 +61,14 @@ class TrialBalanceController extends Controller
         $asOfDate = $request->query('as_of_date', date('Y-m-d'));
 
         $accounts = ChartOfAccount::active()->orderBy('account_code')->get();
+        $balances = ChartOfAccount::getBatchBalances($asOfDate, $accounts);
 
         $rows = [];
         $totalDebit = 0.00;
         $totalCredit = 0.00;
 
         foreach ($accounts as $account) {
-            $balance = $account->calculateBalance($asOfDate);
+            $balance = $balances[$account->id] ?? 0.0;
 
             if (abs($balance) > 0.001) {
                 if ($account->isDebitNormal()) {

@@ -320,7 +320,7 @@ public function payments($projectId)
     $project = Project::with('client')->findOrFail($projectId);
 
     // Fetch payments linked to this project
-    $payments = Payment::where('payment_for', 3)
+    $payments = Payment::where('payment_for', Payment::FOR_PROJECT)
                        ->where('project_id', $projectId)
                        ->get();
 
@@ -339,7 +339,7 @@ public function processPayment(Request $request)
 
     // Create payment
     Payment::create([
-        'payment_for' => 3, // project payment
+        'payment_for' => Payment::FOR_PROJECT,
         'project_id' => $project->id,
         'amount' => $request->payment_amount,
         'payment_method' => $request->payment_method,

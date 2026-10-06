@@ -76,40 +76,38 @@ class SalesController extends Controller
         $users = lib_salesMan();
 
 
-        //Report
-        $todaysRevenue = Service::whereDate('created_at', Carbon::today())->where('status', '1')->sum('bill');
-        $thisWeeksRevenue = Service::whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])->where('status', '1')->sum('bill');
-        $thisMonthsRevenue = Service::whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])->where('status', '1')->sum('bill');
-        $thisYearsRevenue = Service::whereBetween('created_at', [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()])->where('status', '1')->sum('bill');
-        $totalServiceDues = Service::where('status', '1')->where('due_amount', '>', 0)->sum('due_amount');
+        // Sales Revenue Reports & Metrics
+        $todaysSalesRevenue = Sale::whereDate('created_at', Carbon::today())->sum('payble');
+        $thisWeeksSalesRevenue = Sale::whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])->sum('payble');
+        $thisMonthsSalesRevenue = Sale::whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])->sum('payble');
+        $thisYearsSalesRevenue = Sale::whereBetween('created_at', [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()])->sum('payble');
+        $totalSalesDues = Sale::sum('due_payment');
 
-        $todaysSalesRevenue = Sale::whereDate('created_at', Carbon::today())->where('status', '1')->sum('bill');
-        $thisWeeksSalesRevenue = Sale::whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])->where('status', '1')->sum('bill');
-        $thisMonthsSalesRevenue = Sale::whereBetween('created_at', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])->where('status', '1')->sum('bill');
-        $thisYearsSalesRevenue = Sale::whereBetween('created_at', [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()])->where('status', '1')->sum('bill');
-        $totalSalesDues = 0;
+        // Aliases for template compatibility
+        $todaysRevenue = $todaysSalesRevenue;
+        $thisWeeksRevenue = $thisWeeksSalesRevenue;
+        $thisMonthsRevenue = $thisMonthsSalesRevenue;
+        $thisYearsRevenue = $thisYearsSalesRevenue;
+        $totalServiceDues = $totalSalesDues;
 
-        $todaysDailySalesRevenue = 0;
-        $thisWeeksDailySalesRevenue = 0;
-        $thisMonthsDailySalesRevenue = 0;
-        $thisYearsDailySalesRevenue = 0;
+        $todaysDailySalesRevenue = $todaysSalesRevenue;
+        $thisWeeksDailySalesRevenue = $thisWeeksSalesRevenue;
+        $thisMonthsDailySalesRevenue = $thisMonthsSalesRevenue;
+        $thisYearsDailySalesRevenue = $thisYearsSalesRevenue;
 
-        $monthlyRevenue = Service::selectRaw('MONTH(created_at) as month, SUM(bill) as total')
+        $monthlyRevenue = Sale::selectRaw('MONTH(created_at) as month, SUM(payble) as total')
             ->whereYear('created_at', Carbon::now()->year)
-            ->where('status', '1')
             ->groupBy('month')
             ->pluck('total', 'month')
             ->mapWithKeys(function ($total, $month) {
                 $monthName = Carbon::createFromFormat('m', $month)->format('M');
-                return [$monthName => $total];
+                return [$monthName => (float)$total];
             });
 
-        $yearlyRevenue = Service::selectRaw('YEAR(created_at) as year, SUM(bill) as total')
+        $yearlyRevenue = Sale::selectRaw('YEAR(created_at) as year, SUM(payble) as total')
             ->whereRaw('YEAR(created_at) >= YEAR(CURDATE()) - 9')
-            ->where('status', '1')
             ->groupBy('year')
             ->pluck('total', 'year');
-
 
         return view('frontend.pages.sales.index', compact('services', 'request', 'users', 'todaysRevenue', 'thisWeeksRevenue', 'thisMonthsRevenue', 'thisYearsRevenue', 'monthlyRevenue', 'yearlyRevenue', 'todaysSalesRevenue', 'thisWeeksSalesRevenue', 'thisMonthsSalesRevenue', 'thisYearsSalesRevenue', 'totalServiceDues', 'totalSalesDues', 'todaysDailySalesRevenue', 'thisWeeksDailySalesRevenue', 'thisMonthsDailySalesRevenue', 'thisYearsDailySalesRevenue'));
     }
@@ -427,9 +425,10 @@ public function store(StoreSaleRequest $request)
         } catch (\Exception $e) {
             Log::error('Sales invoice PDF generation failed: ' . $e->getMessage(), [
                 'sale_id' => $id,
+                'trace'   => $e->getTraceAsString(),
             ]);
 
-            return redirect()->back()->with('error', 'Failed to generate sales invoice PDF.');
+            return response()->view('errors.500', ['exception' => $e], 500);
         }
     }
 
@@ -497,50 +496,22 @@ public function store(StoreSaleRequest $request)
             $challan->load('challanItems');
         }
 
-        $recipientName = $challan->recipient_organization ?? ($sale->customer?->name ?? $sale->client?->name ?? 'N/A');
-        $recipientAddress = $challan->recipient_address ?? ($sale->customer?->address ?? $sale->client?->address ?? 'N/A');
-
-        $signatoryName = $challan->signatory_name ?? 'Engr. Shamsul Alam';
-        $companyDetail = CompanyDetail::where('signatory_name', $signatoryName)->first()
-            ?? CompanyDetail::default()->active()->first()
-            ?? CompanyDetail::first();
-
-        $pdfData = [
-            'challan'                => $challan,
-            'recipient_organization' => $recipientName,
-            'recipient_designation'  => $challan->recipient_designation ?? 'The Managing Director',
-            'recipient_address'      => $recipientAddress,
-            'attention_to'           => $challan->attention_to ?? '',
-            'subject'                => $challan->subject ?? 'Delivery Challan',
-            'show_signature'         => $challan->show_signature ?? true,
-            'show_seal'              => $challan->show_seal ?? true,
-            'signature_image'        => $companyDetail?->signature_image ?? null,
-            'seal_image'             => $companyDetail?->seal_image ?? null,
-        ];
-
         try {
-            ini_set('memory_limit', '512M');
-            $html = view('pdf.challan', $pdfData)->render();
-            $mpdf = new \Mpdf\Mpdf([
-                'mode' => 'utf-8',
-                'format' => 'A4',
-                'default_font' => 'Helvetica',
-            ]);
-            $mpdf->WriteHTML($html);
-
+            $challanService = app(\App\Services\ChallanService::class);
+            $result = $challanService->renderPdf($challan);
             $fileName = 'Challan_' . ($challan->challan_number ?? $sale->order_no) . '.pdf';
-            $pdfContent = $mpdf->Output('', \Mpdf\Output\Destination::STRING_RETURN);
 
-            return response($pdfContent, 200, [
+            return response($result['content'], 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="' . $fileName . '"',
             ]);
         } catch (\Exception $e) {
             Log::error('Sales Challan PDF generation failed: ' . $e->getMessage(), [
                 'sale_id' => $id,
+                'trace'   => $e->getTraceAsString(),
             ]);
 
-            return redirect()->back()->with('error', 'Failed to generate challan PDF.');
+            return response()->view('errors.500', ['exception' => $e], 500);
         }
     }
 
@@ -740,17 +711,17 @@ public function store(StoreSaleRequest $request)
             'notes' => 'nullable|string',
         ]);
 
+        $sale = Sale::findOrFail($request->sale_id);
+        $paymentAmount = (float)$request->payment_amount;
+
+        // Check if payment amount exceeds due amount before opening transaction
+        if ($paymentAmount > $sale->due_payment) {
+            return redirect()->back()->with('error', 'Payment amount cannot exceed due amount!');
+        }
+
         DB::beginTransaction();
 
         try {
-            $sale = Sale::findOrFail($request->sale_id);
-            $paymentAmount = (float)$request->payment_amount;
-
-            // Check if payment amount exceeds due amount
-            if ($paymentAmount > $sale->due_payment) {
-                return redirect()->back()->with('error', 'Payment amount cannot exceed due amount!');
-            }
-
             // Store due before payment for record
             $dueBeforePayment = $sale->due_payment;
 
