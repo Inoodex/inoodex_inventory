@@ -55,18 +55,18 @@
         <div class="content-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h4 class="card-title fw-bold text-dark mb-1">Monthly Revenue Summary</h4>
-                <p class="text-muted small mb-0">Track monthly sales, purchases, operational expenses, and net profit performance</p>
+                <p class="text-muted small mb-0">Track monthly sales, purchases, operational expenses, and net profit performance across all active periods</p>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <a class="btn btn-outline-danger px-3 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-2" href="{{ route('revenues.pdf') }}" target="_blank">
                     <i class="fe fe-file-text fs-6"></i>
                     <span>Export PDF</span>
                 </a>
-                <form method="POST" action="{{ route('revenues.generate') }}" class="d-inline">
+                <form method="POST" action="{{ route('revenues.generate') }}" class="d-inline" id="generateRevenueForm">
                     @csrf
-                    <button type="submit" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-2">
-                        <i class="fe fe-refresh-cw fs-6"></i>
-                        <span>Generate This Month</span>
+                    <button type="submit" id="btnGenerateRevenue" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm d-inline-flex align-items-center gap-2" title="Auto-calculate and sync revenue from earliest transaction to current month">
+                        <i class="fe fe-refresh-cw fs-6" id="generateIcon"></i>
+                        <span id="generateText">Generate Revenues</span>
                     </button>
                 </form>
             </div>
@@ -201,7 +201,7 @@
                                             <i class="fe fe-trending-up fs-1"></i>
                                         </div>
                                         <h5 class="fw-bold text-dark mb-1">No Revenue Data Generated</h5>
-                                        <p class="text-muted small mb-3">Click 'Generate This Month' above to calculate revenue</p>
+                                        <p class="text-muted small mb-3">Click 'Generate / Sync Revenues' above to auto-calculate revenue from your earliest transaction to current month</p>
                                     </div>
                                 </td>
                             </tr>
@@ -239,6 +239,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (searchInput) searchInput.addEventListener('input', filterTable);
+
+    const generateForm = document.getElementById('generateRevenueForm');
+    if (generateForm) {
+        generateForm.addEventListener('submit', function () {
+            const btn = document.getElementById('btnGenerateRevenue');
+            const icon = document.getElementById('generateIcon');
+            const text = document.getElementById('generateText');
+            if (btn) {
+                btn.classList.add('disabled');
+                if (icon) {
+                    icon.className = 'spinner-border spinner-border-sm me-1';
+                }
+                if (text) {
+                    text.textContent = 'Syncing Revenues...';
+                }
+            }
+        });
+    }
 });
 </script>
 @endsection

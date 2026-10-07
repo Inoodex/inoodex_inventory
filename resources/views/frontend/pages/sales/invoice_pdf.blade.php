@@ -236,20 +236,22 @@
     <table style="width: 100%; border-collapse: collapse; margin-top: 60px;">
         <tr>
             <td width="50%" align="center" style="vertical-align: top;">
-                <table align="center" style="width: 180px; margin: 0 auto 8px auto; border-collapse: collapse;">
+                <table align="center" style="border-collapse: collapse; margin: 0 auto;">
                     <tr>
-                        <td style="border-top: 1.5px solid #475569; height: 1px; font-size: 1px; line-height: 1px;">&nbsp;</td>
+                        <td style="border-top: 1.5px solid #475569; padding-top: 6px; font-size: 11px; font-weight: 600; color: #475569; text-align: center; white-space: nowrap;">
+                            Customer Signature
+                        </td>
                     </tr>
                 </table>
-                <div style="font-size: 11px; font-weight: 600; color: #475569;">Customer Signature</div>
             </td>
             <td width="50%" align="center" style="vertical-align: top;">
-                <table align="center" style="width: 180px; margin: 0 auto 8px auto; border-collapse: collapse;">
+                <table align="center" style="border-collapse: collapse; margin: 0 auto;">
                     <tr>
-                        <td style="border-top: 1.5px solid #475569; height: 1px; font-size: 1px; line-height: 1px;">&nbsp;</td>
+                        <td style="border-top: 1.5px solid #475569; padding-top: 6px; font-size: 11px; font-weight: 600; color: #4f46e5; text-align: center; white-space: nowrap;">
+                            Authorized Signature
+                        </td>
                     </tr>
                 </table>
-                <div style="font-size: 11px; font-weight: 600; color: #4f46e5;">Authorized Signature</div>
             </td>
         </tr>
     </table>

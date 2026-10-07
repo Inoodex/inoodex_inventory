@@ -176,13 +176,14 @@
     <!-- Signature Block -->
     <table style="width: 100%; border-collapse: collapse; margin-top: 50px;">
         <tr>
-            <td width="100%" align="right" style="vertical-align: bottom;">
-                <table align="right" style="width: 180px; margin: 0 0 8px auto; border-collapse: collapse;">
+            <td align="right" style="vertical-align: bottom;">
+                <table align="right" style="border-collapse: collapse; margin: 0 0 0 auto;">
                     <tr>
-                        <td style="border-top: 1.5px solid #475569; height: 1px; font-size: 1px; line-height: 1px;">&nbsp;</td>
+                        <td style="border-top: 1.5px solid #475569; padding-top: 6px; font-size: 11px; font-weight: 600; color: #475569; text-align: center; white-space: nowrap;">
+                            Authorized Signature
+                        </td>
                     </tr>
                 </table>
-                <div style="font-size: 11px; font-weight: 600; color: #475569; padding-right: 35px;">Authorized Signature</div>
             </td>
         </tr>
     </table>
