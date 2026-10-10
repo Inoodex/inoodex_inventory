@@ -4,7 +4,7 @@
             return true;
         }
         $user = auth()->user();
-        return $user->hasRole(['Super Admin', 'Admin', 'admin']) || $user->can($permission);
+        return $user->hasRole('Super Admin') || $user->can($permission);
     };
 @endphp
 
@@ -154,7 +154,7 @@
                 @endif
 
                 <!-- Double-Entry Accounting & Bookkeeping -->
-                @if(auth()->check() && auth()->user()->hasRole(['Super Admin', 'Admin', 'admin']))
+                @if($canView('Accounts Management'))
                     <li class="menu-title"><span>Accounting & Bookkeeping</span></li>
                     <li>
                         <a href="{{ route('chart-of-accounts.index') }}" class="{{ request()->routeIs('chart-of-accounts.*') ? 'active' : '' }}">

@@ -19,7 +19,7 @@ class UserSeeder extends Seeder
             [
                 'name' => 'Super Admin',
                 'role_id' => 1,
-                'password' => Hash::make('hello@inoodex.com'),
+                'password' => Hash::make('p2LwNN%fVe'),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
